@@ -32,6 +32,6 @@ public:
 template<class AxTag>
 const Def* invoke(AxTag sub, Defs);
 
-}
+} // namespace thorin
 
 #endif
