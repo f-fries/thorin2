@@ -8,6 +8,7 @@
 #include "thorin/config.h"
 #include "thorin/debug.h"
 #include "thorin/error.h"
+#include "thorin/infer.h"
 #include "thorin/lattice.h"
 #include "thorin/tuple.h"
 

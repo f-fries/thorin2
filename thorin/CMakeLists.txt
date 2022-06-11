@@ -11,6 +11,8 @@ add_library(libthorin
     dialects.h
     error.cpp
     error.h
+    infer.cpp
+    infer.h
     lam.cpp
     lam.h
     lattice.cpp
