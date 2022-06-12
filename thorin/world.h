@@ -141,10 +141,9 @@ public:
 
     template<class AxTag>
     const Def* call(AxTag sub, const Def* arg, const Def* dbg = {}) {
-        auto axiom = ax(sub);
+        auto axiom        = ax(sub);
         const Def* callee = axiom;
-        for (size_t i = 0, e = axiom->curry(); i != e; ++i)
-            callee = app(callee, nom_infer_infer(), dbg);
+        for (size_t i = 0, e = axiom->curry(); i != e; ++i) callee = app(callee, nom_infer_infer(), dbg);
         return app(callee, arg, dbg);
     }
     template<class AxTag>
