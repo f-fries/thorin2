@@ -74,7 +74,7 @@ public:
     u32 next_gid() { return ++state_.curr_gid; }
     ///@}
 
-    /// @name Universe, Type, Var, Proxy, Infer
+    /// @name Universe, Type, Var, Proxy
     ///@{
     const Univ* univ() { return data_.univ_; }
     const Type* type(const Def* level, const Def* dbg = {}) { return unify<Type>(1, level, dbg)->as<Type>(); }
@@ -91,9 +91,14 @@ public:
     const Proxy* proxy(const Def* type, Defs ops, u32 index, u32 tag, const Def* dbg = {}) {
         return unify<Proxy>(ops.size(), type, ops, index, tag, dbg);
     }
+    ///@}
+
+    /// @name Infer
+    ///@{
     Infer* nom_infer(const Def* type, const Def* dbg = {}) { return insert<Infer>(1, type, dbg); }
     Infer* nom_infer(const Def* type, Sym sym, Loc loc) { return insert<Infer>(1, type, dbg({sym, loc})); }
     Infer* nom_infer_univ(const Def* dbg = {}) { return nom_infer(univ(), dbg); }
+    Infer* nom_infer_infer(const Def* dbg = {}) { return nom_infer(nom_infer_univ(), dbg); }
     ///@}
 
     /// @name Axiom
@@ -132,6 +137,19 @@ public:
     template<axiom_without_sub_tags AxTag>
     const Axiom* ax() const {
         return ax(AxTag::id_);
+    }
+
+    template<class AxTag>
+    const Def* call(AxTag sub, const Def* arg, const Def* dbg = {}) {
+        auto axiom = ax(sub);
+        const Def* callee = axiom;
+        for (size_t i = 0, e = axiom->curry(); i != e; ++i)
+            callee = app(callee, nom_infer_infer(), dbg);
+        return app(callee, arg, dbg);
+    }
+    template<class AxTag>
+    const Def* call(AxTag sub, Defs args, const Def* dbg = {}) {
+        return call(sub, tuple(args), dbg);
     }
     ///@}
 
