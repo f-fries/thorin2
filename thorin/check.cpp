@@ -17,34 +17,51 @@ const Def* infer_type_level(World& world, Defs defs) {
     return world.type(world.lit_univ(level));
 }
 
-template<bool EmplaceCache>
+template<bool Cache>
 bool Checker::equiv(const Def* d1, const Def* d2) {
     if (!d1 || !d2) return false;
+    if (d1 == d2) return true;
 
-    if (d1 == d2 || (d1->is_unset() && d2->is_unset())) return true;
+    auto i1 = d1->isa_nom<Infer>();
+    auto i2 = d2->isa_nom<Infer>();
 
-    // normalize: always put smaller gid to the left
-    if (d1->gid() > d2->gid()) std::swap(d1, d2);
+    if (i1 && i1) {
+        assert(false && "TODO");
+    }
 
-    if constexpr (EmplaceCache) {
+    if (d1->is_unset() && d2->is_unset()) return true;
+
+    // normalize: infer to the left; smaller gid to the left (with this priority)
+    if ((!i1 && i2) || d1->gid() > d2->gid()) std::swap(d1, d2);
+
+    if (auto infer = d1->isa_nom<Infer>()) {
+        if (infer->is_unset()) {
+            infer->set(d2);
+            return true;
+        }
+
+        return equiv<Cache>(infer->op(), d2);
+    }
+
+    if constexpr (Cache) {
         // this assumption will either hold true - or we will bail out with false anyway
         auto [_, inserted] = equiv_.emplace(d1, d2);
         if (!inserted) return true;
     } else if (equiv_.find(DefDef{d1, d2}) != equiv_.end())
         return true;
 
-    if (!equiv<EmplaceCache>(d1->type(), d2->type())) return false;
+    if (!equiv<Cache>(d1->type(), d2->type())) return false;
 
-    if (d1->isa<Top>() || d2->isa<Top>()) return equiv<EmplaceCache>(d1->type(), d2->type());
+    if (d1->isa<Top>() || d2->isa<Top>()) return equiv<Cache>(d1->type(), d2->type());
 
     if (is_sigma_or_arr(d1)) {
-        if (!equiv<EmplaceCache>(d1->arity(), d2->arity())) return false;
+        if (!equiv<Cache>(d1->arity(), d2->arity())) return false;
 
         if (auto a = isa_lit(d1->arity())) {
             for (size_t i = 0; i != a; ++i) {
-                if (!equiv<EmplaceCache>(d1->proj(*a, i), d2->proj(*a, i))) return false;
+                if (!equiv<Cache>(d1->proj(*a, i), d2->proj(*a, i))) return false;
             }
-            if constexpr (!EmplaceCache) equiv_.emplace(d1, d2);
+            if constexpr (!Cache) equiv_.emplace(d1, d2);
             return true;
         }
     } else if (auto p1 = d1->isa<Var>()) {
@@ -52,13 +69,13 @@ bool Checker::equiv(const Def* d1, const Def* d2) {
         for (auto [q1, q2] : vars_) {
             if (p1 == q1) {
                 auto result = d2->as<Var>() == q2;
-                if constexpr (!EmplaceCache)
+                if constexpr (!Cache)
                     if (result) equiv_.emplace(d1, d2);
                 return result;
             }
         }
 
-        if constexpr (!EmplaceCache) equiv_.emplace(d1, d2);
+        if constexpr (!Cache) equiv_.emplace(d1, d2);
         return true;
     }
 
@@ -71,8 +88,8 @@ bool Checker::equiv(const Def* d1, const Def* d2) {
         return false;
 
     bool result =
-        std::ranges::equal(d1->ops(), d2->ops(), [this](auto op1, auto op2) { return equiv<EmplaceCache>(op1, op2); });
-    if constexpr (!EmplaceCache)
+        std::ranges::equal(d1->ops(), d2->ops(), [this](auto op1, auto op2) { return equiv<Cache>(op1, op2); });
+    if constexpr (!Cache)
         if (result) equiv_.emplace(d1, d2);
     return result;
 }

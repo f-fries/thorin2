@@ -98,7 +98,14 @@ public:
     Infer* nom_infer(const Def* type, const Def* dbg = {}) { return insert<Infer>(1, type, dbg); }
     Infer* nom_infer(const Def* type, Sym sym, Loc loc) { return insert<Infer>(1, type, dbg({sym, loc})); }
     Infer* nom_infer_univ(const Def* dbg = {}) { return nom_infer(univ(), dbg); }
-    Infer* nom_infer_infer(const Def* dbg = {}) { return nom_infer(nom_infer_univ(), dbg); }
+    Infer* nom_infer_value_or_type(const Def* dbg = {}) {
+        // We pessemistcally assume that the entity we are looking for is a value (u = 0).
+        // If it is a type, everything moves up one level (u = 1).
+        auto u = nom_infer_univ();
+        auto k = nom_infer(u);
+        auto t = nom_infer(k);
+        return nom_infer(t, dbg);
+    }
     ///@}
 
     /// @name Axiom
@@ -137,18 +144,6 @@ public:
     template<axiom_without_sub_tags AxTag>
     const Axiom* ax() const {
         return ax(AxTag::id_);
-    }
-
-    template<class AxTag>
-    const Def* call(AxTag sub, const Def* arg, const Def* dbg = {}) {
-        auto axiom        = ax(sub);
-        const Def* callee = axiom;
-        for (size_t i = 0, e = axiom->curry(); i != e; ++i) callee = app(callee, nom_infer_infer(), dbg);
-        return app(callee, arg, dbg);
-    }
-    template<class AxTag>
-    const Def* call(AxTag sub, Defs args, const Def* dbg = {}) {
-        return call(sub, tuple(args), dbg);
     }
     ///@}
 
@@ -189,6 +184,22 @@ public:
     const Def* raw_app(const Def* callee, const Def* arg, const Def* dbg = {});
     /// Same as World::app but does *not* apply NormalizeFn.
     const Def* raw_app(const Def* callee, Defs args, const Def* dbg = {}) { return raw_app(callee, tuple(args), dbg); }
+    ///@}
+
+    /// @name call
+    ///@{
+    /// Infers the args of a curried Axiom.
+    template<class AxTag>
+    const Def* call(AxTag sub, const Def* arg, const Def* dbg = {}) {
+        auto axiom        = ax(sub);
+        const Def* callee = axiom;
+        for (size_t i = 0, e = axiom->curry(); i != e; ++i) callee = app(callee, nom_infer_value_or_type(), dbg);
+        return app(callee, arg, dbg);
+    }
+    template<class AxTag>
+    const Def* call(AxTag sub, Defs args, const Def* dbg = {}) {
+        return call(sub, tuple(args), dbg);
+    }
     ///@}
 
     /// @name Sigma
