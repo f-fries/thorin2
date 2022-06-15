@@ -89,6 +89,7 @@ void PassMan::run() {
 
 const Def* PassMan::rewrite(const Def* old_def) {
     if (old_def->no_dep()) return old_def;
+    if (auto infer = old_def->isa<Infer>(); infer && infer->is_set()) return infer->op();
 
     if (auto nom = old_def->isa_nom()) {
         curr_state().nom2visit.emplace(nom, curr_undo());

@@ -13,10 +13,7 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     auto new_type = old_def->type() ? rewrite(old_def->type()) : nullptr;
     auto new_dbg  = old_def->dbg() ? rewrite(old_def->dbg()) : nullptr;
 
-    // TODO double-check that this really makes sense
-    if (auto infer = old_def->isa_nom<Infer>()) {
-        if (auto op = infer->op()) return op;
-    }
+    if (auto infer = old_def->isa<Infer>(); infer && infer->is_set()) return infer->op();
 
     if (auto old_nom = old_def->isa_nom()) {
         auto new_nom     = old_nom->stub(new_world, new_type, new_dbg);

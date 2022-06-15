@@ -219,7 +219,7 @@ const Def* World::app(const Def* callee, const Def* arg, const Def* dbg) {
     auto pi = callee->type()->as<Pi>();
 
     if (err()) {
-        if (!checker_->assignable(pi->dom(), arg)) err()->ill_typed_app(callee, arg);
+        if (!checker_->assignable(pi->dom(), arg, dbg)) err()->ill_typed_app(callee, arg, dbg);
     }
 
     auto type           = pi->reduce(arg).back();
@@ -258,7 +258,7 @@ const Def* World::tuple(Defs ops, const Def* dbg) {
 
     auto sigma = infer_sigma(*this, ops);
     auto t     = tuple(sigma, ops, dbg);
-    if (err() && !checker_->assignable(sigma, t)) { assert(false && "TODO: error msg"); }
+    if (err() && !checker_->assignable(sigma, t, dbg)) { assert(false && "TODO: error msg"); }
 
     return t;
 }
@@ -308,6 +308,8 @@ const Def* World::tuple_str(std::string_view s, const Def* dbg) {
 }
 
 const Def* World::extract(const Def* d, const Def* index, const Def* dbg) {
+    if (auto infer = d->isa<Infer>(); infer && infer->is_set()) d = infer->op();
+
     if (index->isa<Arr>() || index->isa<Pack>()) {
         DefArray ops(as_lit(index->arity()), [&](size_t) { return extract(d, index->ops().back()); });
         return index->isa<Arr>() ? sigma(ops, dbg) : tuple(ops, dbg);
@@ -320,8 +322,8 @@ const Def* World::extract(const Def* d, const Def* index, const Def* dbg) {
 
     auto type = d->type()->reduce_rec();
     if (err()) {
-        if (!checker_->equiv(type->arity(), isa_sized_type(index->type())))
-            err()->index_out_of_range(type->arity(), index);
+        if (!checker_->equiv(type->arity(), isa_sized_type(index->type()), dbg))
+            err()->index_out_of_range(type->arity(), index, dbg);
     }
 
     // nom sigmas can be 1-tuples
@@ -356,7 +358,7 @@ const Def* World::extract(const Def* d, const Def* index, const Def* dbg) {
     // for now just use t's type.
     if (auto sigma = type->isa<Sigma>();
         sigma && std::all_of(sigma->ops().begin() + 1, sigma->ops().end(),
-                             [&](auto op) { return checker_->equiv<false>(sigma->op(0), op); }))
+                             [&](auto op) { return checker_->equiv<false>(sigma->op(0), op, dbg); }))
         return unify<Extract>(2, sigma->op(0), d, index, dbg);
 
     type = type->as<Arr>()->body();
@@ -366,8 +368,8 @@ const Def* World::extract(const Def* d, const Def* index, const Def* dbg) {
 const Def* World::insert(const Def* d, const Def* index, const Def* val, const Def* dbg) {
     auto type = d->type()->reduce_rec();
 
-    if (err() && !checker_->equiv(type->arity(), isa_sized_type(index->type())))
-        err()->index_out_of_range(type->arity(), index);
+    if (err() && !checker_->equiv(type->arity(), isa_sized_type(index->type()), dbg))
+        err()->index_out_of_range(type->arity(), index, dbg);
 
     if (auto mod = isa_lit(isa_sized_type(index->type())); mod && *mod == 1)
         return tuple(d, {val}, dbg); // d could be nom - that's why the tuple ctor is needed
@@ -403,7 +405,7 @@ bool is_shape(const Def* s) {
 
 const Def* World::arr(const Def* shape, const Def* body, const Def* dbg) {
     if (err()) {
-        if (!is_shape(shape->type())) err()->expected_shape(shape);
+        if (!is_shape(shape->type())) err()->expected_shape(shape, dbg);
     }
 
     if (auto a = isa_lit<u64>(shape)) {
@@ -424,7 +426,7 @@ const Def* World::arr(const Def* shape, const Def* body, const Def* dbg) {
 
 const Def* World::pack(const Def* shape, const Def* body, const Def* dbg) {
     if (err()) {
-        if (!is_shape(shape->type())) err()->expected_shape(shape);
+        if (!is_shape(shape->type())) err()->expected_shape(shape, dbg);
     }
 
     if (auto a = isa_lit<u64>(shape)) {
@@ -461,7 +463,7 @@ const Lit* World::lit_int(const Def* type, u64 i, const Def* dbg) {
     auto l = lit(type, i, dbg);
 
     if (auto a = isa_lit(size)) {
-        if (err() && *a != 0 && i >= *a) err()->index_out_of_range(size, l);
+        if (err() && *a != 0 && i >= *a) err()->index_out_of_range(size, l, dbg);
     }
 
     return l;
@@ -532,7 +534,7 @@ const Def* World::test(const Def* value, const Def* probe, const Def* match, con
         assert(m_pi && c_pi);
         auto a = isa_lit(m_pi->dom()->arity());
         assert(a && *a == 2);
-        assert(checker_->equiv(m_pi->dom(2, 0_s), c_pi->dom()));
+        assert(checker_->equiv(m_pi->dom(2, 0_s), c_pi->dom(), dbg));
     }
 
     auto codom = join({m_pi->codom(), c_pi->codom()});

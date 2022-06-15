@@ -98,9 +98,10 @@ public:
     Infer* nom_infer(const Def* type, const Def* dbg = {}) { return insert<Infer>(1, type, dbg); }
     Infer* nom_infer(const Def* type, Sym sym, Loc loc) { return insert<Infer>(1, type, dbg({sym, loc})); }
     Infer* nom_infer_univ(const Def* dbg = {}) { return nom_infer(univ(), dbg); }
-    Infer* nom_infer_value_or_type(const Def* dbg = {}) {
+    Infer* nom_infer_entity(const Def* dbg = {}) {
         // We pessemistcally assume that the entity we are looking for is a value (u = 0).
         // If it is a type, everything moves up one level (u = 1).
+        // But this all could even be more levels up.
         auto u = nom_infer_univ();
         auto k = nom_infer(u);
         auto t = nom_infer(k);
@@ -193,12 +194,24 @@ public:
     const Def* call(AxTag sub, const Def* arg, const Def* dbg = {}) {
         auto axiom        = ax(sub);
         const Def* callee = axiom;
-        for (size_t i = 0, e = axiom->curry(); i != e; ++i) callee = app(callee, nom_infer_value_or_type(), dbg);
+        for (size_t i = 1, e = axiom->curry(); i < e; ++i) callee = app(callee, nom_infer_entity(), dbg);
         return app(callee, arg, dbg);
     }
     template<class AxTag>
     const Def* call(AxTag sub, Defs args, const Def* dbg = {}) {
         return call(sub, tuple(args), dbg);
+    }
+
+    template<class AxTag>
+    const Def* call(const Def* arg, const Def* dbg = {}) {
+        auto axiom        = ax<AxTag>();
+        const Def* callee = axiom;
+        for (size_t i = 1, e = axiom->curry(); i < e; ++i) callee = app(callee, nom_infer_entity(), dbg);
+        return app(callee, arg, dbg);
+    }
+    template<class AxTag>
+    const Def* call(Defs args, const Def* dbg = {}) {
+        return call<AxTag>(tuple(args), dbg);
     }
     ///@}
 

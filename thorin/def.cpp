@@ -389,6 +389,8 @@ const Def* Def::proj(nat_t a, nat_t i, const Def* dbg) const {
     } else if (auto pack = isa<Pack>()) {
         if (pack->arity()->isa<Top>()) return pack->body();
         return pack->reduce(world().lit_int(as_lit(pack->arity()), i)).back();
+    } else if (auto infer = isa<Infer>(); infer && is_set()) {
+        return infer->op()->proj(a, i, dbg);
     } else if (sort() == Sort::Term) {
         return world().extract(this, a, i, dbg);
     }
