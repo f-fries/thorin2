@@ -308,6 +308,7 @@ const Def* World::tuple_str(std::string_view s, const Def* dbg) {
 }
 
 const Def* World::extract(const Def* d, const Def* index, const Def* dbg) {
+    // TODO we really don't want to add this line all over the place
     if (auto infer = d->isa<Infer>(); infer && infer->is_set()) d = infer->op();
 
     if (index->isa<Arr>() || index->isa<Pack>()) {

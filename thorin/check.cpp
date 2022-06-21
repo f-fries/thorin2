@@ -21,18 +21,20 @@ template<bool Cache>
 bool Checker::equiv(const Def* d1, const Def* d2, const Def* dbg /*= {}*/) {
     if (!d1 || !d2) return false;
     if (d1 == d2) return true;
-
-    auto i1 = d1->isa_nom<Infer>();
-    auto i2 = d2->isa_nom<Infer>();
-
-    if (i1 && i2) {
-        assert(false && "TODO");
-    }
-
     if (d1->is_unset() && d2->is_unset()) return true;
 
     // normalize: Infer to the left; smaller gid to the left (with this priority)
-    if ((!i1 && i2) || d1->gid() > d2->gid()) std::swap(d1, d2);
+    auto i1 = d1->isa_nom<Infer>();
+    auto i2 = d2->isa_nom<Infer>();
+    // clang-format off
+    if (false) {}
+    else if ( i1 &&  i2) assert(false && "TODO");
+    else if (!i1 &&  i2) std::swap(d1, d2);
+    else if ( i1 && !i2) { /* do nothing */ }
+    else if (!i1 && !i2) {
+        if (d1->gid() > d2->gid()) std::swap(d1, d2);
+    }
+    // clang-format on
 
     if (auto infer = d1->isa_nom<Infer>()) {
         if (infer->is_unset()) {
@@ -88,8 +90,8 @@ bool Checker::equiv(const Def* d1, const Def* d2, const Def* dbg /*= {}*/) {
         d1->is_set() != d2->is_set())
         return false;
 
-    bool result =
-        std::ranges::equal(d1->ops(), d2->ops(), [this, dbg](auto op1, auto op2) { return equiv<Cache>(op1, op2, dbg); });
+    bool result = std::ranges::equal(d1->ops(), d2->ops(),
+                                     [this, dbg](auto op1, auto op2) { return equiv<Cache>(op1, op2, dbg); });
     if constexpr (!Cache)
         if (result) equiv_.emplace(d1, d2);
     return result;
