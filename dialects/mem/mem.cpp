@@ -1,3 +1,5 @@
+#include "dialects/mem/mem.h"
+
 #include <thorin/config.h>
 #include <thorin/pass/pass.h>
 
@@ -11,7 +13,6 @@
 #include "thorin/pass/rw/ret_wrap.h"
 #include "thorin/pass/rw/scalarize.h"
 
-#include "dialects/mem/mem.h"
 #include "dialects/mem/passes/fp/copy_prop.h"
 #include "dialects/mem/passes/fp/ssa_constr.h"
 #include "dialects/mem/passes/rw/alloc2malloc.h"
