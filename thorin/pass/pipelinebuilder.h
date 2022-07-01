@@ -1,5 +1,4 @@
-#ifndef THORIN_PASS_PIPELINEBUILDER_H
-#define THORIN_PASS_PIPELINEBUILDER_H
+#pragma once
 
 #include <functional>
 #include <vector>
@@ -22,6 +21,5 @@ private:
     std::vector<std::function<void(PassMan&)>> opt_phase_extensions_;
     std::vector<std::function<void(PassMan&)>> codegen_prep_phase_extensions_;
 };
-} // namespace thorin
 
-#endif
+} // namespace thorin

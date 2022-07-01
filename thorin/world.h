@@ -1,8 +1,8 @@
-#ifndef THORIN_WORLD_H
-#define THORIN_WORLD_H
+#pragma once
 
 #include <sstream>
 #include <string>
+#include <string_view>
 
 #include "thorin/axiom.h"
 #include "thorin/config.h"
@@ -144,14 +144,14 @@ public:
     /// E.g. use `w.ax<mem::M>();` to get the %mem.M axiom.
     template<axiom_without_sub_tags AxTag>
     const Axiom* ax() const {
-        return ax(AxTag::id_);
+        return ax(AxTag::Axiom_Id);
     }
     ///@}
 
     /// @name Pi
     ///@{
     const Pi* pi(const Def* dom, const Def* codom, const Def* dbg = {}) {
-        return unify<Pi>(2, codom->inf_type(), dom, codom, dbg);
+        return unify<Pi>(2, codom->unfold_type(), dom, codom, dbg);
     }
     const Pi* pi(Defs dom, const Def* codom, const Def* dbg = {}) { return pi(sigma(dom), codom, dbg); }
     Pi* nom_pi(const Def* type, const Def* dbg = {}) { return insert<Pi>(2, type, dbg); }
@@ -174,7 +174,7 @@ public:
     const Lam* lam(const Pi* pi, const Def* filter, const Def* body, const Def* dbg) {
         return unify<Lam>(2, pi, filter, body, dbg);
     }
-    const Lam* lam(const Pi* pi, const Def* body, const Def* dbg) { return lam(pi, lit_true(), body, dbg); }
+    const Lam* lam(const Pi* pi, const Def* body, const Def* dbg) { return lam(pi, lit_tt(), body, dbg); }
     ///@}
 
     /// @name App
@@ -265,16 +265,12 @@ public:
     ///@}
 
     /// @name Extract
+    /// @sa core::extract_unsafe
     ///@{
     const Def* extract(const Def* d, const Def* i, const Def* dbg = {});
     const Def* extract(const Def* d, u64 a, u64 i, const Def* dbg = {}) { return extract(d, lit_int(a, i), dbg); }
     const Def* extract(const Def* d, u64 i, const Def* dbg = {}) { return extract(d, as_lit(d->arity()), i, dbg); }
-    const Def* extract_unsafe(const Def* d, u64 i, const Def* dbg = {}) {
-        return extract_unsafe(d, lit_int(0_u64, i), dbg);
-    }
-    const Def* extract_unsafe(const Def* d, const Def* i, const Def* dbg = {}) {
-        return extract(d, op(Conv::u2u, type_int(as_lit(d->type()->reduce_rec()->arity())), i, dbg), dbg);
-    }
+
     /// Builds `(f, t)cond`.
     /// **Note** that select expects @p t as first argument and @p f as second one.
     const Def* select(const Def* t, const Def* f, const Def* cond, const Def* dbg = {}) {
@@ -283,6 +279,7 @@ public:
     ///@}
 
     /// @name Insert
+    /// @sa core::insert_unsafe
     ///@{
     const Def* insert(const Def* d, const Def* i, const Def* val, const Def* dbg = {});
     const Def* insert(const Def* d, u64 a, u64 i, const Def* val, const Def* dbg = {}) {
@@ -290,12 +287,6 @@ public:
     }
     const Def* insert(const Def* d, u64 i, const Def* val, const Def* dbg = {}) {
         return insert(d, as_lit(d->arity()), i, val, dbg);
-    }
-    const Def* insert_unsafe(const Def* d, u64 i, const Def* val, const Def* dbg = {}) {
-        return insert_unsafe(d, lit_int(0_u64, i), val, dbg);
-    }
-    const Def* insert_unsafe(const Def* d, const Def* i, const Def* val, const Def* dbg = {}) {
-        return insert(d, op(Conv::u2u, type_int(as_lit(d->type()->reduce_rec()->arity())), i), val, dbg);
     }
     ///@}
 
@@ -332,8 +323,8 @@ public:
     }
 
     const Lit* lit_bool(bool val) { return data_.lit_bool_[size_t(val)]; }
-    const Lit* lit_false() { return data_.lit_bool_[0]; }
-    const Lit* lit_true() { return data_.lit_bool_[1]; }
+    const Lit* lit_ff() { return data_.lit_bool_[0]; }
+    const Lit* lit_tt() { return data_.lit_bool_[1]; }
     // clang-format off
     const Lit* lit_real(nat_t width, r64 val, const Def* dbg = {}) {
         switch (width) {
@@ -599,6 +590,9 @@ public:
     ErrorHandler* err() { return err_.get(); }
     ///@}
 
+    void add_imported(std::string_view name) { data_.imported_dialects_.emplace(name); }
+    const absl::flat_hash_set<std::string>& imported() const { return data_.imported_dialects_; }
+
     friend void swap(World& w1, World& w2) {
         using std::swap;
         // clang-format off
@@ -769,6 +763,7 @@ private:
         Externals externals_;
         Sea defs_;
         DefDefMap<DefArray> cache_;
+        absl::flat_hash_set<std::string> imported_dialects_;
     } data_;
 
     std::unique_ptr<Checker> checker_;
@@ -793,5 +788,3 @@ std::ostream& operator<<(std::ostream&, const World&);
 // clang-format on
 
 } // namespace thorin
-
-#endif

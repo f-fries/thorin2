@@ -1,9 +1,8 @@
-#ifndef THORIN_DIALECTS_AFFINE_AFFINE_H
-#define THORIN_DIALECTS_AFFINE_AFFINE_H
+#pragma once
 
 #include "thorin/world.h"
 
-#include "dialects/affine.h"
+#include "dialects/affine/autogen.h"
 
 namespace thorin::affine {
 
@@ -27,5 +26,3 @@ inline const Def* op_for(World& w,
     return w.app(fn_for(w, types), {mem, begin, end, step, w.tuple(inits), body, brk});
 }
 } // namespace thorin::affine
-
-#endif

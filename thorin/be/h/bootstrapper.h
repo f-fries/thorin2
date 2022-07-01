@@ -1,16 +1,20 @@
-#ifndef THORIN_BE_H_H_H
-#define THORIN_BE_H_H_H
+#pragma once
 
 #include <deque>
 #include <ostream>
 #include <string>
 #include <string_view>
 
+#include "thorin/tables.h"
+
 #include "thorin/util/print.h"
+
+#include "absl/container/flat_hash_map.h"
 
 namespace thorin::h {
 
 struct AxiomInfo {
+    flags_t tag_id;
     std::string dialect;
     std::string tag;
     std::deque<std::deque<std::string>> subs;
@@ -26,7 +30,7 @@ public:
     void emit(std::ostream&);
     std::string_view dialect() const { return dialect_; }
 
-    std::deque<AxiomInfo> axioms;
+    absl::flat_hash_map<std::string, AxiomInfo> axioms;
     Tab tab;
 
 private:
@@ -34,5 +38,3 @@ private:
 };
 
 } // namespace thorin::h
-
-#endif

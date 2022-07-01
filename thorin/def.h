@@ -1,5 +1,4 @@
-#ifndef THORIN_DEF_H
-#define THORIN_DEF_H
+#pragma once
 
 #include <optional>
 #include <vector>
@@ -133,8 +132,10 @@ public:
 
     /// @name type
     ///@{
+    /// @returns the **literal** type of this Def. See Def::unfold_type.
     const Def* type() const { return type_; }
-    const Def* inf_type() const;
+    /// @returns the type of this Def and unfolds it if necessary. See Def::type, Def::reduce_rec.
+    const Def* unfold_type() const;
     Sort sort() const;
     const Def* arity() const;
     ///@}
@@ -618,5 +619,3 @@ hash_t UseHash::operator()(Use use) const { return hash_combine(hash_begin(u16(u
 //------------------------------------------------------------------------------
 
 } // namespace thorin
-
-#endif

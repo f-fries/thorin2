@@ -1,5 +1,4 @@
-#ifndef THORIN_TOK_H
-#define THORIN_TOK_H
+#pragma once
 
 #include "thorin/debug.h"
 
@@ -29,8 +28,9 @@ namespace thorin {
     m(K_fn,     ".fn"    )             \
     m(K_ff,     ".ff"    )             \
     m(K_tt,     ".tt"    )             \
+    m(K_ins,    ".ins"   )             \
 
-#define CODE(t, str) +size_t(1)
+#define CODE(t, str) + size_t(1)
 constexpr auto Num_Keys = size_t(0) THORIN_KEY(CODE);
 #undef CODE
 
@@ -73,9 +73,10 @@ constexpr auto Num_Keys = size_t(0) THORIN_KEY(CODE);
     m(T_star,         "*")              \
 
 #define THORIN_SUBST(m)                 \
-    m("->",     T_arrow)                \
-    m(".bot",   T_bot  )                \
-    m(".top",   T_top  )                \
+    m("->",      T_arrow)               \
+    m(".bot",    T_bot  )               \
+    m(".top",    T_top  )               \
+    m(".insert", K_ins  )               \
 
 #define THORIN_PREC(m)                  \
     /* left     prec,       right  */   \
@@ -171,5 +172,3 @@ private:
 std::ostream& operator<<(std::ostream& os, const Tok tok);
 
 } // namespace thorin
-
-#endif

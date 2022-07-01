@@ -44,8 +44,12 @@ add_library(libthorin
     be/emitter.h
     be/dot/dot.cpp
     be/dot/dot.h
-    be/h/h.cpp
-    be/h/h.h
+    be/h/bootstrapper.cpp
+    be/h/bootstrapper.h
+    fe/ast.cpp
+    fe/ast.h
+    fe/binder.cpp
+    fe/binder.h
     fe/lexer.cpp
     fe/lexer.h
     fe/parser.cpp
@@ -97,19 +101,31 @@ add_library(libthorin
 
 set_target_properties(libthorin PROPERTIES PREFIX "")
 
+get_target_property(libthorin_HEADERS libthorin SOURCES)
+list(FILTER libthorin_HEADERS INCLUDE REGEX ".*\.h")
+
 configure_file(config.h.in config.h)
-target_include_directories(libthorin PUBLIC 
-    ${CMAKE_CURRENT_BINARY_DIR}/.. # for config.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/..
-    ${PROJECT_SOURCE_DIR}/modules/half/include
+target_include_directories(libthorin
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/..> # for config.h
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..> # for thorin/*
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/modules/half/include>
+        $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(libthorin 
-    PUBLIC 
+target_link_libraries(libthorin
+    PUBLIC
         absl::flat_hash_map absl::flat_hash_set
         absl::node_hash_map absl::node_hash_set
         ${CMAKE_DL_LIBS}
 )
 
+target_compile_features(libthorin PUBLIC cxx_std_${CMAKE_CXX_STANDARD}) # make property public.
+
 if(MSVC AND BUILD_SHARED_LIBS)
     target_compile_definitions(libthorin PUBLIC ABSL_CONSUME_DLL)
 endif()
+
+install(TARGETS libthorin EXPORT install_exports INCLUDES DESTINATION include)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} DESTINATION include FILES_MATCHING PATTERN "*.h")
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/config.h DESTINATION include/thorin)
+install(FILES ${PROJECT_SOURCE_DIR}/modules/half/include/half.hpp DESTINATION include)

@@ -1,4 +1,4 @@
-#include "thorin/be/h/h.h"
+#include "thorin/be/h/bootstrapper.h"
 
 #include <ranges>
 #include <sstream>
@@ -11,8 +11,7 @@
 namespace thorin::h {
 
 void Bootstrapper::emit(std::ostream& h) {
-    tab.print(h, "#ifndef THORIN_{}_H\n", dialect_);
-    tab.print(h, "#define THORIN_{}_H\n\n", dialect_);
+    tab.print(h, "#pragma once\n\n");
     tab.print(h, "#include \"thorin/axiom.h\"\n"
                  "#include \"thorin/dialects.h\"\n"
                  "#include \"thorin/tables.h\"\n\n");
@@ -23,15 +22,14 @@ void Bootstrapper::emit(std::ostream& h) {
     std::vector<std::ostringstream> normalizers, outer_namespace;
 
     h << std::hex;
-    tab.print(h, "static constexpr dialect_t id = 0x{};\n\n", dialect_id);
+    tab.print(h, "static constexpr dialect_t Dialect_Id = 0x{};\n\n", dialect_id);
 
-    tag_t tag = 0;
-    for (const auto& ax : axioms) {
+    for (const auto& [key, ax] : axioms) {
         tab.print(h, "enum class {} : flags_t {{\n", ax.tag);
         ++tab;
-        flags_t ax_id = dialect_id | (tag++ << 8u);
+        flags_t ax_id = dialect_id | (ax.tag_id << 8u);
         if (auto& subs = ax.subs; !subs.empty()) {
-            tab.print(h, "base_ = 0x{},\n", ax_id);
+            tab.print(h, "Axiom_Base = 0x{},\n", ax_id);
             for (const auto& aliases : subs) {
                 const auto& sub = aliases.front();
                 tab.print(h, "{} = 0x{},\n", sub, ax_id++);
@@ -42,10 +40,10 @@ void Bootstrapper::emit(std::ostream& h) {
                           ax.normalizer, ax.tag, sub);
             }
         } else {
-            tab.print(h, "id_ = 0x{},\n", ax_id);
+            tab.print(h, "Axiom_Id = 0x{},\n", ax_id);
 
             if (!ax.normalizer.empty())
-                print(normalizers.emplace_back(), "normalizers[flags_t({}::id_)] = &{};", ax.tag, ax.normalizer);
+                print(normalizers.emplace_back(), "normalizers[flags_t({}::Axiom_Id)] = &{};", ax.tag, ax.normalizer);
         }
         --tab;
         tab.print(h, "}};\n\n");
@@ -95,10 +93,10 @@ void Bootstrapper::emit(std::ostream& h) {
     for (const auto& line : outer_namespace) { tab.print(h, "{}", line.str()); }
     tab.print(h, "\n");
 
-    if (std::ranges::any_of(axioms, [](const auto& ax) { return !ax.pi; })) {
+    if (std::ranges::any_of(axioms, [](const auto& ax) { return !ax.second.pi; })) {
         tab.print(h, "namespace detail {{\n");
 
-        for (const auto& ax : axioms)
+        for (const auto& [tag, ax] : axioms)
             if (!ax.pi)
                 tab.print(h,
                           "template<>\n"
@@ -110,9 +108,7 @@ void Bootstrapper::emit(std::ostream& h) {
         tab.print(h, "}} // namespace detail\n");
     }
 
-    tab.print(h, "}} // namespace thorin\n\n");
-
-    tab.print(h, "#endif\n");
+    tab.print(h, "}} // namespace thorin\n");
 }
 
 } // namespace thorin::h
