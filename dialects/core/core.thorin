@@ -126,7 +126,11 @@
 ///
 /// ### %core.wrap
 ///
-.ax %core.wrap(add, sub, mul, shl): Π [m: .Nat, w: .Nat] -> [%Int w, %Int w] -> %Int w, normalize_wrap;
+.let us = 0;
+.let uS = 1;
+.let Us = 2;
+.let US = 3;
+.ax %core.wrap(add, sub, mul, shl): Π w: .Nat -> /* mode */ .Nat -> [%Int w, %Int w] -> %Int w, normalize_wrap;
 ///
 /// ### %core.div
 ///
