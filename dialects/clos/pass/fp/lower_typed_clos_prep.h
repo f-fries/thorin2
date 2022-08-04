@@ -15,6 +15,8 @@ public:
 
     using Data = int; // Dummy
 
+    static PassTag* ID();
+
 private:
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Def*) override;

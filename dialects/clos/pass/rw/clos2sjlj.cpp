@@ -173,4 +173,9 @@ const Def* Clos2SJLJ::rewrite(const Def* def) {
     return def;
 }
 
+PassTag* Clos2SJLJ::ID() {
+    static PassTag Key;
+    return &Key;
+}
+
 } // namespace thorin::clos

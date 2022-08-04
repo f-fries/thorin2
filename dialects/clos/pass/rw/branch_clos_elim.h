@@ -17,6 +17,8 @@ public:
 
     const Def* rewrite(const Def*) override;
 
+    static PassTag* ID();
+
 private:
     DefMap<Lam*> branch2dropped_;
 };

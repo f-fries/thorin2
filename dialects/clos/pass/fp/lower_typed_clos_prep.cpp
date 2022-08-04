@@ -97,4 +97,9 @@ undo_t LowerTypedClosPrep::analyze(const Def* def) {
     return No_Undo;
 }
 
+PassTag* LowerTypedClosPrep::ID() {
+    static PassTag Key;
+    return &Key;
+}
+
 } // namespace thorin::clos

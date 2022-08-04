@@ -39,6 +39,8 @@ public:
         return op(c, wrapper);
     }
 
+    static PassTag* ID();
+
 private:
     EtaExp* eta_exp_;
     DefMap<Lam*> old2wrapper_;

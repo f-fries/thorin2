@@ -46,4 +46,9 @@ const Def* BranchClosElim::rewrite(const Def* def) {
     return def;
 }
 
+PassTag* BranchClosElim::ID() {
+    static PassTag Key;
+    return &Key;
+}
+
 }; // namespace thorin::clos

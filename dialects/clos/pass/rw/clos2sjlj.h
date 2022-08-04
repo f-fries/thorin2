@@ -18,6 +18,8 @@ public:
     void enter() override;
     const Def* rewrite(const Def*) override;
 
+    static PassTag* ID();
+
 private:
     const Def* void_ptr() { return mem::type_ptr(world().type_int_width(8)); }
     const Def* jb_type() { return void_ptr(); }

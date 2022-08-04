@@ -117,4 +117,9 @@ const Def* ClosConvPrep::rewrite(const Def* def) {
     return def;
 }
 
+PassTag* ClosConvPrep::ID() {
+    static PassTag Key;
+    return &Key;
+}
+
 } // namespace thorin::clos
