@@ -21,6 +21,32 @@ const Def* Rewriter::rewrite(const Def* old_def) {
         if (auto op = infer->op()) return op;
     }
 
+    if (auto arr = old_def->isa_nom<Arr>()) {
+        auto new_shape = rewrite(arr->shape());
+        if (auto s = isa_lit(new_shape)) {
+            assert(same_worlds());
+            Scope scope(arr);
+
+            Array<const Def*> new_ops(*s);
+            for (size_t i = 0; i != *s; ++i) {
+                if (auto curr_scope = this->scope(); curr_scope && curr_scope->bound(arr)) {
+                    ScopeRewriter rw(old_world, *curr_scope);
+                    rw.old2new = old2new;
+                    rw.old2new[arr->var()] = old_world.lit_int(*s, i);
+                    new_ops[i] = rw.rewrite(arr->body());
+                } else {
+                    ScopeRewriter rw(old_world, scope);
+                    rw.old2new = old2new;
+                    rw.old2new[arr->var()] = old_world.lit_int(*s, i);
+                    new_ops[i] = rw.rewrite(arr->body());
+                }
+            }
+
+            auto res = old_world.tuple(new_ops);
+            return old2new[arr] = res;
+        }
+    }
+
     if (auto old_nom = old_def->isa_nom()) {
         auto new_nom     = old_nom->stub(new_world, new_type, new_dbg);
         old2new[old_nom] = new_nom;

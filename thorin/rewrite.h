@@ -34,6 +34,9 @@ public:
     virtual std::pair<const Def*, bool> post_rewrite(const Def*) { return {nullptr, false}; }
     ///@}
 
+    bool same_worlds() const { return &old_world == &new_world; }
+    virtual const Scope* scope() const { return nullptr; }
+
     World& old_world;
     World& new_world;
     Def2Def old2new;
@@ -43,14 +46,17 @@ class ScopeRewriter : public Rewriter {
 public:
     ScopeRewriter(World& world, const Scope& scope)
         : Rewriter(world)
-        , scope(scope) {}
+        , scope_(scope) {}
 
     const Def* rewrite(const Def* old_def) override {
-        if (!scope.bound(old_def)) return old_def;
+        if (!scope_.bound(old_def)) return old_def;
         return Rewriter::rewrite(old_def);
     }
 
-    const Scope& scope;
+    virtual const Scope* scope() const { return &scope_; }
+
+private:
+    const Scope& scope_;
 };
 
 /// Rewrites @p def by mapping @p old_def to @p new_def while obeying @p scope.
