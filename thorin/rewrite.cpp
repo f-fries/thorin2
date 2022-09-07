@@ -22,14 +22,17 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     }
 
     if (auto arr = old_def->isa_nom<Arr>()) {
+        static Tab tab;
         auto new_shape = rewrite(arr->shape());
         if (auto s = isa_lit(new_shape)) {
+            tab.println(std::cout, "arr: {}, var: {}", arr, arr->var());
+            ++tab;
             assert(same_worlds());
             Scope scope(arr);
 
             Array<const Def*> new_ops(*s);
             for (size_t i = 0; i != *s; ++i) {
-                if (auto curr_scope = this->scope(); curr_scope && curr_scope->bound(arr)) {
+                if (auto curr_scope = this->scope(); curr_scope) {
                     ScopeRewriter rw(old_world, *curr_scope);
                     rw.old2new             = old2new;
                     rw.old2new[arr->var()] = old_world.lit_int(*s, i);
@@ -42,7 +45,9 @@ const Def* Rewriter::rewrite(const Def* old_def) {
                 }
             }
 
-            auto res            = old_world.tuple(new_ops);
+            auto res = old_world.sigma(new_ops);
+            --tab;
+            tab.println(std::cout, "arr: {}, var: {} -> {} DONE", arr, arr->var(), res);
             return old2new[arr] = res;
         }
     }
