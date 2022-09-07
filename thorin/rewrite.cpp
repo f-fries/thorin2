@@ -31,18 +31,18 @@ const Def* Rewriter::rewrite(const Def* old_def) {
             for (size_t i = 0; i != *s; ++i) {
                 if (auto curr_scope = this->scope(); curr_scope && curr_scope->bound(arr)) {
                     ScopeRewriter rw(old_world, *curr_scope);
-                    rw.old2new = old2new;
+                    rw.old2new             = old2new;
                     rw.old2new[arr->var()] = old_world.lit_int(*s, i);
-                    new_ops[i] = rw.rewrite(arr->body());
+                    new_ops[i]             = rw.rewrite(arr->body());
                 } else {
                     ScopeRewriter rw(old_world, scope);
-                    rw.old2new = old2new;
+                    rw.old2new             = old2new;
                     rw.old2new[arr->var()] = old_world.lit_int(*s, i);
-                    new_ops[i] = rw.rewrite(arr->body());
+                    new_ops[i]             = rw.rewrite(arr->body());
                 }
             }
 
-            auto res = old_world.tuple(new_ops);
+            auto res            = old_world.tuple(new_ops);
             return old2new[arr] = res;
         }
     }
