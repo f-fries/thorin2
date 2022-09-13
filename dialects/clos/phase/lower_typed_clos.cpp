@@ -4,6 +4,9 @@
 
 #include "thorin/check.h"
 
+#include "dialects/core/core.h"
+#include "dialects/mem/mem.h"
+
 namespace thorin::clos {
 
 void LowerTypedClos::start() {
@@ -113,7 +116,7 @@ const Def* LowerTypedClos::rewrite(const Def* def) {
 
     if (auto c = isa_clos_lit(def)) {
         auto env      = rewrite(c.env());
-        auto mode     = (isa<Tag::Int>(env->type()) || isa<Tag::Ptr>(env->type())) ? Unbox : Box;
+        auto mode     = (match<core::Int>(env->type()) || match<mem::Ptr>(env->type())) ? Unbox : Box;
         const Def* fn = make_stub(c.fnc_as_lam(), mode, true);
         if (env->type() == w.sigma()) {
             // Optimize empty env
