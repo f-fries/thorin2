@@ -19,6 +19,22 @@
 
 using namespace thorin;
 
+template<class P>
+class PhasePassWrapper : public RWPass<PhasePassWrapper<P>, Lam> {
+public:
+    template<typename ...Args>
+    PhasePassWrapper(PassMan& man, Args&&... args)
+        : RWPass<PhasePassWrapper<P>, Lam>(man, "phase_wrapper")
+        , phase_(man.world(), std::forward<Args>(args)...) {};
+
+    void prepare() override {
+        phase_.start();
+    }
+
+private:
+    P phase_;
+};
+
 class ClosConvWrapper : public RWPass<ClosConvWrapper, Lam>{
 public:
     bool single = true;
@@ -47,32 +63,32 @@ extern "C" THORIN_EXPORT DialectInfo thorin_get_dialect_info() {
 
                 //closure_conv
                 builder.extend_opt_phase([](PassMan& man) {
-                    man.add<clos::ClosConvPrep>( nullptr);
+                    clos::ClosConvPrep::addPasses(man);
                 });
-                builder.extend_opt_phase([](PassMan& man) {
-                    man.add<EtaExp>(nullptr);
-                });
-                builder.extend_opt_phase([](PassMan& man) {
-                    man.add<ClosConvWrapper>();
-                });
-                builder.extend_opt_phase([](PassMan& man) {
-                    auto er = man.add<EtaRed>(true);
-                    auto ee = man.add<EtaExp>(er);
-                    man.add<Scalerize>(ee);
-                });
+                // builder.extend_opt_phase([](PassMan& man) {
+                //     man.add<EtaExp>(nullptr);
+                // });
+                // builder.extend_opt_phase([](PassMan& man) {
+                //     man.add<ClosConvWrapper>();
+                // });
+                // builder.extend_opt_phase([](PassMan& man) {
+                //     auto er = man.add<EtaRed>(true);
+                //     auto ee = man.add<EtaExp>(er);
+                //     man.add<Scalerize>(ee);
+                // });
                 //lower_closures
 
-                builder.extend_opt_phase([](PassMan& man) {
-                    man.add<Scalerize>(nullptr);
-                    man.add<clos::BranchClosElim>();
-                    man.add<mem::CopyProp>(nullptr, nullptr, true);
-                    man.add<clos::LowerTypedClosPrep>();
-                    man.add<clos::Clos2SJLJ>();
-                });
+                // builder.extend_opt_phase([](PassMan& man) {
+                //     man.add<Scalerize>(nullptr);
+                //     man.add<clos::BranchClosElim>();
+                //     man.add<mem::CopyProp>(nullptr, nullptr, true);
+                //     man.add<clos::LowerTypedClosPrep>();
+                //     man.add<clos::Clos2SJLJ>();
+                // });
 
-                builder.extend_opt_phase([](PassMan& man) {
-                    man.add<LowerTypedClosWrapper>();
-                });
+                // builder.extend_opt_phase([](PassMan& man) {
+                //     man.add<LowerTypedClosWrapper>();
+                // });
             },
             nullptr, [](Normalizers& normalizers) { clos::register_normalizers(normalizers); }};
 }
