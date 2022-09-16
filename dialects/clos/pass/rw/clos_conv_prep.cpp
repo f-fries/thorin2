@@ -128,22 +128,19 @@ void ClosConvPrep::AnnotRet::enter() {
     if (auto app = curr_nom()->body()->isa<App>(); app && app->callee_type()->is_returning()) {
         auto n        = app->num_args() - 1;
         if (match(clos::ret, app->arg(n))) return;
-        auto new_args = world().insert(app->arg(), n, op(clos::ret, app->arg(n)));
-        curr_nom()->set_body(app->refine(1, new_args));
+        auto new_args = DefArray(app->num_args(), [&](auto i) {
+            return op(i == n ? clos::ret : clos::bot, app->arg(i));
+        });
+        curr_nom()->set_body(app->refine(1, world().tuple(new_args)));
     }
 }
 
 const Def* ClosConvPrep::AnnotRet::rewrite(const Def* def) {
     if (auto retcn = match(clos::ret, def)) {
-        if (retcn->arg()->isa_nom<Lam>()) return def;
-        if (is_retvar_of(def)) return def;
-        return ClosConvPrep::eta_wrap(this->old2wrapper_, retcn->arg(), "eta_ret");
+        if (retcn->arg()->isa_nom<Lam>() || is_retvar_of(retcn->arg())) return def;
+        return ClosConvPrep::eta_wrap<clos::ret>(this->old2wrapper_, retcn->arg(), "eta_ret");
     }
     return def;
-}
-
-const Def* ClosConvPrep::AnnotExt::rewrite(const Def* old_def) {
-    return old_def;
 }
 
 bool ClosConvPrep::AnnotExt::is_free_bb(const Def* def) { 
@@ -178,6 +175,28 @@ void ClosConvPrep::AnnotExt::enter() {
     //     cur_body_ = body;
     // else
     //     cur_body_ = nullptr;
+}
+
+const Def* ClosConvPrep::AnnotExt::rewrite(const Def* old_def) {
+    auto& w = world();
+    if (is_free_bb(old_def)) {
+        w.DLOG("found free bb: {}", old_def);
+        return eta_wrap(old_def, "eta_free");
+    }
+    if (match<clos>(old_def)) return old_def;
+    for (size_t i = 0; i < old_def->num_ops(); i++) {
+        auto op = old_def->op(i);
+        if (isa_callee(old_def, i) || match<clos>(op)) continue;
+        if (auto bb_lam = is_bb(op); bb_lam && bb_lam->is_basicblock()) {
+            w.DLOG("found firstclass bb: {}", op);
+            return old_def->refine(i, eta_wrap(op, "eta_ext"));
+        }
+        if (auto _ = is_retvar_of(op)) {
+            w.DLOG("found firstclass retvar: {}", op);
+            return old_def->refine(i, eta_wrap(op, "eta_ext"));
+        }
+    }
+    return old_def;
 }
 
 } // namespace thorin::clos
