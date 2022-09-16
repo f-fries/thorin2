@@ -53,29 +53,16 @@ public:
 
     static void addPasses(PassMan& man) {
         man.add<AnnotBr>();
-        man.add<AnnotRet>();
-        // auto eta_exp = man->add<EtaExp>(nullptr);
-        // man->add<AnnotExt>(eta_exp);
-        // add<PassManPhase>(std::move(man));
+        auto eta_exp = man.add<EtaExp>(nullptr);
+        auto annot_ext = man.add<AnnotExt>(eta_exp);
+        man.add<AnnotRet>(annot_ext);
     }
 
     ClosConvPrep(World& w)
         : Pipeline(w) {
         auto man = std::make_unique<PassMan>(w);
-        addPasses(*man); 
+        // addPasses(*man); 
         add<PassManPhase>(std::move(man));
-    }
-
-    template<clos c = clos::bot>
-    static auto eta_wrap(Def2Def& old2wrap, const Def* def, const std::string& dbg) {
-        auto& w = def->world();
-        auto [entry, inserted] = old2wrap.emplace(def, nullptr);
-        auto& wrapper = entry->second;
-        if (inserted) {
-            wrapper = w.nom_lam(def->type()->as<Pi>(), w.dbg(dbg));
-            wrapper->as_nom<Lam>()->app(false, def, wrapper->as_nom<Lam>()->var());
-        }
-        return op(c, wrapper);
     }
 
 protected:
@@ -88,34 +75,30 @@ protected:
         void enter() override;
     };
 
-    class AnnotRet : public RWPass<AnnotRet, Lam> {
-    public:
-        AnnotRet(PassMan& man)
-            : RWPass(man, "annot_ret") 
-            , old2wrapper_() {};
-
-        void enter() override;
-
-        const Def* rewrite(const Def* old) override;
-
-    private:
-        Def2Def old2wrapper_;
-    };
-
     class AnnotExt : public RWPass<AnnotExt, Lam> {
     public:
         AnnotExt(PassMan& man, EtaExp* eta_exp)
             : RWPass(man, "annot_ext") 
             , eta_exp_(eta_exp) 
             , old2wrapper_()
-            , visited_fncs_() {};
+            , visited_fncs_()
+            , ext_wrapper_() {};
 
         void enter() override;
 
         const Def* rewrite(const Def* old_def) override;
         
-        const Def* eta_wrap(const Def* def, const std::string& dbg = "eta_ext") {
-            return ClosConvPrep::eta_wrap<clos::ext>(this->old2wrapper_, def, dbg);
+        auto eta_wrap(clos c, const Def* def, const std::string& dbg = {}) {
+            auto& w = def->world();
+            auto [entry, inserted] = old2wrapper_.emplace(def, nullptr);
+            auto& wrapper = entry->second;
+            if (inserted) {
+                wrapper = w.nom_lam(def->type()->as<Pi>(), w.dbg(dbg));
+                wrapper->as_nom<Lam>()->app(false, def, wrapper->as_nom<Lam>()->var());
+                bb2ifs_[wrapper->as_nom<Lam>()] = bb2ifs(curr_nom());
+                if (c == clos::ext) ext_wrapper_.emplace(wrapper->as_nom<Lam>());
+            }
+            return op(c, wrapper);
         }
 
         Lam* bb2ifs(Lam* bb) {
@@ -130,6 +113,22 @@ protected:
         Def2Def old2wrapper_;
         Lam2Lam bb2ifs_;
         LamSet visited_fncs_;
+        LamSet ext_wrapper_;
+    };
+
+    class AnnotRet : public RWPass<AnnotRet, Lam> {
+    public:
+        AnnotRet(PassMan& man, AnnotExt* annot_ext)
+            : RWPass(man, "annot_ret") 
+            , annot_ext_(annot_ext) {};
+
+        void enter() override;
+
+        const Def* rewrite(const Def* old) override;
+
+    private:
+        Def2Def old2wrapper_;
+        AnnotExt* annot_ext_;
     };
 };
 
