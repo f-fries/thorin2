@@ -1,0 +1,27 @@
+
+.import mem;
+.import core;
+
+.let i32 = %Int 4294967296;
+.let i8 = %Int 256;
+
+.let ADD = %core.wrap.add (0, 4294967296);
+.let MUL = %core.wrap.mul (0, 4294967296);
+
+.cn .extern h [mem_h: %mem.M, z: i32, ret_h: .Cn [%mem.M, i32]] = {
+    ret_h(mem_h, 0:i32)
+};
+
+.cn .extern f [mem_f: %mem.M, x : i32, ret_f : .Cn [%mem.M, i32]] = {
+    .cn g [mem_g: %mem.M, y: i32, ret_g: .Cn [%mem.M, i32]] = {
+        .let a = ADD (x, y);
+        .let b = ADD (a, 42:i32);
+        h (mem_g, 0:i32, ret_f)
+    };
+    .cn cont [mem_cont: %mem.M, r: i32] = {
+        .let rs2 = MUL (r, 1337:i32);
+        ret_f (mem_cont, rs2)
+    };
+    g (mem_f, 1:i32, cont)
+};
+
