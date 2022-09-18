@@ -80,17 +80,17 @@ extern "C" THORIN_EXPORT DialectInfo thorin_get_dialect_info() {
 
                 //lower_closures
 
-                // builder.extend_opt_phase([](PassMan& man) {
-                //     man.add<Scalerize>(nullptr);
-                //     man.add<clos::BranchClosElim>();
-                //     man.add<mem::CopyProp>(nullptr, nullptr, true);
-                //     man.add<clos::LowerTypedClosPrep>();
-                //     man.add<clos::Clos2SJLJ>();
-                // });
+                builder.extend_opt_phase([](PassMan& man) {
+                    man.add<Scalerize>(nullptr);
+                    man.add<clos::BranchClosElim>();
+                    man.add<mem::CopyProp>(nullptr, nullptr, true);
+                    man.add<clos::LowerTypedClosPrep>();
+                    man.add<clos::Clos2SJLJ>();
+                });
 
-                // builder.extend_opt_phase([](PassMan& man) {
-                //     man.add<LowerTypedClosWrapper>();
-                // });
+                builder.extend_opt_phase([](PassMan& man) {
+                    man.add<LowerTypedClosWrapper>();
+                });
             },
             nullptr, [](Normalizers& normalizers) { clos::register_normalizers(normalizers); }};
 }
