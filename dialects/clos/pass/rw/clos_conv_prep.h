@@ -27,6 +27,17 @@ public:
         add<PassManPhase>(std::move(man));
     }
 
+    class CleanupAnnots : public RWPass<CleanupAnnots, Lam> {
+    public:
+        CleanupAnnots(PassMan& man)
+            : RWPass(man, "cleaunp_annots") {}
+
+        const Def* rewrite(const Def* old_def) {
+            if (auto q = match<clos>(old_def)) return q->arg();
+            return old_def;
+        }
+    };
+
 protected:
     class AnnotNonLoc : public RWPass<AnnotNonLoc, Lam> {
     public:

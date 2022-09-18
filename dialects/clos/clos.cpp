@@ -68,14 +68,16 @@ extern "C" THORIN_EXPORT DialectInfo thorin_get_dialect_info() {
                 // builder.extend_opt_phase([](PassMan& man) {
                 //     man.add<EtaExp>(nullptr);
                 // });
-                // builder.extend_opt_phase([](PassMan& man) {
-                //     man.add<ClosConvWrapper>();
-                // });
-                // builder.extend_opt_phase([](PassMan& man) {
-                //     auto er = man.add<EtaRed>(true);
-                //     auto ee = man.add<EtaExp>(er);
-                //     man.add<Scalerize>(ee);
-                // });
+                builder.extend_opt_phase([](PassMan& man) {
+                    man.add<ClosConvWrapper>();
+                });
+                builder.extend_opt_phase([](PassMan& man) {
+                    auto er = man.add<EtaRed>(true);
+                    auto ee = man.add<EtaExp>(er);
+                    man.add<Scalerize>(ee);
+                    man.add<clos::ClosConvPrep::CleanupAnnots>();
+                });
+
                 //lower_closures
 
                 // builder.extend_opt_phase([](PassMan& man) {
