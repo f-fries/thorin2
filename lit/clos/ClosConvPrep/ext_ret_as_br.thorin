@@ -1,0 +1,38 @@
+.import mem;
+.import core;
+
+.let i32 = %Int 4294967296;
+.let i8 = %Int 256;
+.let M = %mem.M;
+
+.let ADD = %core.wrap.add (0, 4294967296);
+.let MUL = %core.wrap.mul (0, 4294967296);
+.let EQ = %core.icmp.e 4294967296;
+.let LT = %core.icmp.sl 4294967296;
+
+.cn .extern g [M, i32, .Cn [M, i32]];
+
+.cn .extern h [mem_h: M, y : i32, ret_h : .Cn [M, i32]] = {
+
+    .cn f [mem_f: M, x: i32, ret_f: .Cn [M, i32]] = {
+        .cn if_then [mem_then: M, z: i32] = {
+            .let z2 =  MUL (z, 2:i32);
+            ret_f (mem_f, z2)
+        };
+        .cn g_cont [mem_g_cont: M, res: i32] = {
+            .let i = LT (res, 42:i32);
+            (if_then, ret_h)#i (mem_g_cont, res)
+        };
+        .let x2 = ADD (x, 1:i32);
+        g (mem_f, x2, g_cont)
+    };
+
+    .cn f_cont [mem_f_cont: M, res: i32] = {
+        .let res2 = MUL (res, 7:i32);
+        g (mem_f_cont, res2, ret_h)
+    };
+
+    f (mem_h, ADD (3:i32, y), f_cont)
+
+};
+
