@@ -15,9 +15,9 @@ public:
     /// Adds the passes to a PassMan.
     /// IMPORTANT: DO NOT COMBINE THIS WITH OTHER PASSES!
     static void addPasses(PassMan& man) {
-        auto annot_ext = man.add<AnnotExt>();
-        man.add<AnnotBr>(annot_ext);
-        man.add<AnnotRet>(annot_ext);
+        auto annot_nonloc = man.add<AnnotNonLoc>();
+        man.add<AnnotBr>(annot_nonloc);
+        man.add<AnnotRet>(annot_nonloc);
     }
 
     ClosConvPrep(World& w)
@@ -28,13 +28,13 @@ public:
     }
 
 protected:
-    class AnnotExt : public RWPass<AnnotExt, Lam> {
+    class AnnotNonLoc : public RWPass<AnnotNonLoc, Lam> {
     public:
-        AnnotExt(PassMan& man)
-            : RWPass(man, "annot_ext") 
+        AnnotNonLoc(PassMan& man)
+            : RWPass(man, "annot_nonloc") 
             , old2wrapper_()
             , visited_fncs_()
-            , ext_wrapper_() {};
+            , nonloc_wrapper_() {};
 
     public:
         /// Get the innermost enclosing function scope (IFS) for lam.
@@ -67,7 +67,7 @@ protected:
                 wrapper->as_nom<Lam>()->app(false, def, wrapper->as_nom<Lam>()->var());
                 w.DLOG("η-expand: {} -> {}", def, op(c, wrapper));
                 set_ifs(wrapper->as_nom<Lam>());
-                if (c == clos::ext) ext_wrapper_.emplace(wrapper->as_nom<Lam>());
+                if (c == clos::nonlocal) nonloc_wrapper_.emplace(wrapper->as_nom<Lam>());
             }
             return annot(c, wrapper);
         }
@@ -84,33 +84,33 @@ protected:
         Def2Def old2wrapper_; 
         Lam2Lam bb2ifs_;      
         LamSet visited_fncs_;
-        LamSet ext_wrapper_;  ///< η-wrapper for nonlocal BB. These are ignored when computing free BBs.
+        LamSet nonloc_wrapper_;  ///< η-wrapper for nonlocal BB. These are ignored when computing free BBs.
     };
 
     class AnnotBr : public RWPass<AnnotBr, Lam> {
     public:
-        AnnotBr(PassMan& man, AnnotExt* annot_ext)
+        AnnotBr(PassMan& man, AnnotNonLoc* annot_nonloc)
             : RWPass(man, "annot_br") 
-            , annot_ext_(annot_ext) {}
+            , annot_nonloc_(annot_nonloc) {}
 
         void enter() override;
         const Def* rewrite(const Def* old_def) override;
 
     private:
-        AnnotExt* annot_ext_;
+        AnnotNonLoc* annot_nonloc_;
     };
 
     class AnnotRet : public RWPass<AnnotRet, Lam> {
     public:
-        AnnotRet(PassMan& man, AnnotExt* annot_ext)
+        AnnotRet(PassMan& man, AnnotNonLoc* annot_nonloc)
             : RWPass(man, "annot_ret") 
-            , annot_ext_(annot_ext) {};
+            , annot_nonloc_(annot_nonloc) {};
 
         void enter() override;
         const Def* rewrite(const Def* old) override;
 
     private:
-        AnnotExt* annot_ext_;
+        AnnotNonLoc* annot_nonloc_;
     };
 };
 
