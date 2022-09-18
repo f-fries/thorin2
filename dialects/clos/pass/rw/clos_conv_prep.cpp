@@ -23,7 +23,7 @@ void ClosConvPrep::AnnotBr::enter() {
         for (size_t i = 0; i < proj->tuple()->num_projs(); i++) {
             auto br = proj->tuple()->proj(i);
             if (match(clos::br, br) || !br->type()->isa<Pi>()) return;
-            new_brs[i] = op(clos::br, br);
+            new_brs[i] = annot_ext_->annot(clos::br, br);
         }
         auto new_callee = proj->refine(0, world().tuple(new_brs));
         curr_nom()->set_body(app->refine(0, new_callee));
@@ -43,7 +43,7 @@ void ClosConvPrep::AnnotRet::enter() {
         auto n        = app->num_args() - 1;
         if (match(clos::ret, app->arg(n))) return;
         auto new_args = DefArray(app->num_args(), [&](auto i) {
-            return op(i == n ? clos::ret : clos::bot, app->arg(i));
+            return annot_ext_->annot(i == n ? clos::ret : clos::bot, app->arg(i));
         });
         curr_nom()->set_body(app->refine(1, world().tuple(new_args)));
     }
@@ -81,19 +81,19 @@ void ClosConvPrep::AnnotExt::enter() {
 const Def* ClosConvPrep::AnnotExt::rewrite(const Def* old_def) {
     auto& w = world();
     for (size_t i = 0; i < old_def->num_ops(); i++) {
-        auto op = old_def->op(i);
-        if (is_free_bb(op)) {
-            w.DLOG("found free bb: {}", op);
-            return old_def->refine(i, eta_wrap(clos::ext, op, "eta_free"));
+        auto cur_op = old_def->op(i);
+        if (is_free_bb(cur_op)) {
+            w.DLOG("found free bb: {}", cur_op);
+            return old_def->refine(i, eta_wrap(clos::ext, cur_op, "eta_free"));
         }
         if (isa_callee(old_def, i) || match<clos>(old_def)) continue;
-        if (auto bb_lam = is_bb(op); bb_lam && bb_lam->is_basicblock()) {
-            w.DLOG("found firstclass bb: {}", op);
-            return old_def->refine(i, eta_wrap(clos::ext, op, "eta_ext"));
+        if (auto bb_lam = is_bb(cur_op); bb_lam && bb_lam->is_basicblock()) {
+            w.DLOG("found firstclass bb: {}", cur_op);
+            return old_def->refine(i, eta_wrap(clos::ext, cur_op, "eta_ext"));
         }
-        if (is_retvar_of(op)) {
-            w.DLOG("found firstclass retvar: {}", op);
-            return old_def->refine(i, eta_wrap(clos::ext, op, "eta_ext"));
+        if (is_retvar_of(cur_op)) {
+            w.DLOG("found firstclass retvar: {}", cur_op);
+            return old_def->refine(i, eta_wrap(clos::ext, cur_op, "eta_ext"));
         }
     }
     return old_def;

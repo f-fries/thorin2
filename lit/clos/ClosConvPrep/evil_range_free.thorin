@@ -1,0 +1,38 @@
+.import mem;
+.import core;
+
+.let i32 = %Int 4294967296;
+.let i8 = %Int 256;
+.let M = %mem.M;
+
+.let ADD = %core.wrap.add (0, 4294967296);
+.let MUL = %core.wrap.mul (0, 4294967296);
+.let EQ = %core.icmp.e 4294967296;
+.let LT = %core.icmp.sl 4294967296;
+.let MOD = %core.div.srem 4294967296;
+.let TO_BOOL = %core.conv.s2s (2, 4294967296);
+
+.cn printInteger [mem: %mem.M, val: i32, return : .Cn [%mem.M]];
+
+.let I2I = .Cn [M, i32, .Cn [M, i32]];
+
+.cn .extern evil_range [mem:M, n:i32, f: .Cn [M, I2I, .Cn M], ret: .Cn M] = {
+    .cn loop_head [mem:M, i:i32] = {
+        .cn body [mem:M] = {
+            .cn f_cont [mem: M] = {
+                loop_head (mem, ADD (i, 1:i32))
+            };
+            .cn g [mem: M, x: i32, ret_g: .Cn [M, i32]] = {
+                .cn if_then [mem: M] = {
+                    ret_g (mem, MUL (x, i))
+                };
+                .let c = EQ (x, 42:i32);
+                (body, if_then)#c mem
+            };
+            f (mem, g, f_cont)
+        };
+        .let i = LT(i, n);
+        (body, ret)#i mem
+    };
+    loop_head (mem, 0:i32)
+};

@@ -52,10 +52,15 @@ protected:
             world().DLOG("scope {} -> {}", bblam, ifs);
         }
 
+        template<bool tag = true>
+        auto annot(clos c, const Def* def, const Def* dbg = {}) {
+            return op(c, tag ? curr_nom()->gid() : 0, def, dbg);
+        }
+
         /// η-expand def and tag the wrapper with c. 
         auto eta_wrap(clos c, const Def* def, const std::string& dbg = {}) {
             auto& w = def->world();
-            auto [entry, inserted] = old2wrapper_.emplace(op(c, def), nullptr);
+            auto [entry, inserted] = old2wrapper_.emplace(annot<false>(c, def), nullptr);
             auto& wrapper = entry->second;
             if (inserted) {
                 wrapper = w.nom_lam(def->type()->as<Pi>(), w.dbg(dbg));
@@ -64,7 +69,7 @@ protected:
                 set_ifs(wrapper->as_nom<Lam>());
                 if (c == clos::ext) ext_wrapper_.emplace(wrapper->as_nom<Lam>());
             }
-            return op(c, wrapper);
+            return annot(c, wrapper);
         }
 
         bool is_free_bb(const Def* def);

@@ -18,10 +18,14 @@ inline const Def* op_longjmp(const Def* mem, const Def* buf, const Def* id, cons
     World& w = mem->world();
     return w.app(w.ax<longjmp>(), {mem, buf, id}, dbg);
 }
-inline const Def* op(clos o, const Def* def, const Def* dbg = {}) {
+
+inline const Def* op(clos o, nat_t n, const Def* def, const Def* dbg = {}) {
     World& w = def->world();
-    return w.app(w.app(w.ax(o), def->type()), def, dbg);
+    // return w.app(w.app(w.ax(o), w.lit_nat(id), def->type()), def, dbg);
+    return w.app(w.app(w.ax(o), {def->type(), w.lit_nat(n)}), def, dbg);
 }
+
+inline const Def* op(clos o, const Def* def, const Def* dbg = {}) { return op(o, 0, def, dbg); }
 
 /// @name closures
 /// @{

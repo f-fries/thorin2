@@ -15,4 +15,4 @@
 ///
 /// ## Closure Annotations
 ///
-.ax %clos.clos(ret, br, ext, freeBB, fstclassBB, esc, bot): Π T: * -> T -> T, normalize_clos;
+.ax %clos.clos(ret, br, ext, freeBB, fstclassBB, esc, bot): Π [T: *, .Nat] -> T -> T, normalize_clos;
