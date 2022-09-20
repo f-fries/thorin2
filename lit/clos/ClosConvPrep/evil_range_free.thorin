@@ -22,12 +22,15 @@
             .cn f_cont [mem: M] = {
                 loop_head (mem, ADD (i, 1:i32))
             };
+            .cn break [men: M] = {
+                ret mem
+            };
             .cn g [mem: M, x: i32, ret_g: .Cn [M, i32]] = {
                 .cn if_then [mem: M] = {
                     ret_g (mem, MUL (x, i))
                 };
                 .let c = EQ (x, 42:i32);
-                (body, if_then)#c mem
+                (break, if_then)#c mem
             };
             f (mem, g, f_cont)
         };

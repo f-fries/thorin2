@@ -16,7 +16,7 @@
 
 .cn printInteger [mem: %mem.M, val: i32, return : .Cn [%mem.M]];
 
-.cn .extern evil_range [mem:M, n:i32, f: C, ret: .Cn mem] = {
+.cn .extern evil_range [mem:M, n:i32, f: C, ret: .Cn M] = {
     .cn loop_head [mem:M, i:i32] = {
         .cn body [mem:M] = {
             .cn f_cont [mem: M] = {
@@ -30,13 +30,13 @@
     loop_head (mem, 0:i32)
 };
 
-.cn .extern evil_f [mem: M, i:i32, continue:.Cn M, ret:.Cn mem] = {
+.cn .extern evil_f [mem: M, i:i32, continue:.Cn M, ret:.Cn M] = {
     .let (dmem, c) = MOD (mem, i, 2:i32);
     .let cont = (continue, ret)#(TO_BOOL c);
     printInteger (dmem, c, cont)
 };
 
-.cn .extern f [mem: M, i:i32, continue:.Cn M, ret:.Cn mem] = {
+.cn .extern f [mem: M, i:i32, continue:.Cn M, ret:.Cn M] = {
     .let (dmem, c) = MOD (mem, i, 2:i32);
     .cn print_cont [mem: M] = {
         (continue, ret)#(TO_BOOL c) mem

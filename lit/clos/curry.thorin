@@ -1,0 +1,22 @@
+
+.import mem;
+.import core;
+
+.let i32 = %Int 4294967296;
+.let i8 = %Int 256;
+.let M = %mem.M;
+
+.let ADD = %core.wrap.add (0, 4294967296);
+.let MUL = %core.wrap.mul (0, 4294967296);
+.let EQ = %core.icmp.e 4294967296;
+.let LT = %core.icmp.sl 4294967296;
+
+.cn .extern curry [mem: M, f: .Cn[M, i32, i32, .Cn[M, i32]], ret: .Cn[M, .Cn [M, i32, .Cn[M, .Cn[M, i32, .Cn[M, i32]]]]]] = {
+    .cn g [mem: M, x: i32, ret: .Cn[M, .Cn[M, i32, .Cn[M, i32]]]] = {
+        .cn h [mem: M, y: i32, ret: .Cn[M, i32]] = {
+            f (mem, x, y, ret)
+        };
+        ret (mem, h)
+    };
+    ret (mem, g)
+};

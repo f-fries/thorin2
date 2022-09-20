@@ -1,0 +1,19 @@
+.import mem;
+.import core;
+.import direct;
+
+.let i32 = %Int 4294967296;
+.let i8 = %Int 256;
+.let M = %mem.M;
+
+.let ADD = %core.wrap.add (0, 4294967296);
+.let MUL = %core.wrap.mul (0, 4294967296);
+.let EQ = %core.icmp.e 4294967296;
+.let LT = %core.icmp.sl 4294967296;
+.let MOD = %core.div.srem 4294967296;
+.let TO_BOOL = %core.conv.s2s (2, 4294967296);
+
+.cn g [M, .Cn M, .Cn M];
+.cn .extern f [mem: M, ret: .Cn M] = {
+    g (mem, ret, ret)
+};
