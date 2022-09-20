@@ -128,7 +128,7 @@ void ClosConv::start() {
         if (auto i = closures_.find(def); i != closures_.end()) {
             rewrite_body(i->second.fn, subst);
         } else {
-            world().DLOG("RUN: rewrite def {}", def);
+            // world().DLOG("RUN: rewrite def {}", def);
             rewrite(def, subst);
         }
     }
@@ -190,7 +190,7 @@ const Def* ClosConv::rewrite(const Def* def, Def2Def& subst) {
         auto closure_type             = rewrite(lam->type(), subst);
         auto env                      = rewrite(fv_env, subst);
         auto closure                  = clos_pack(env, new_lam, closure_type);
-        w.DLOG("RW: pack {} ~> {} : {}", lam, closure, closure_type);
+        // w.DLOG("RW: pack {} ~> {} : {}", lam, closure, closure_type);
         return map(closure);
     } else if (auto q = match(clos::ret, def)) {
         if (auto ret_lam = q->arg()->isa_nom<Lam>()) {
@@ -233,7 +233,7 @@ const Def* ClosConv::rewrite(const Def* def, Def2Def& subst) {
             return glob_noms_[nom] = rewrite_nom(global, new_type, new_dbg, subst);
         }
         assert(!isa_clos_type(nom));
-        w.DLOG("RW: nom {}", nom);
+        // w.DLOG("RW: nom {}", nom);
         auto new_nom = rewrite_nom(nom, new_type, new_dbg, subst);
         // Try to reduce the amount of noms that are created
         if (!nom->isa_nom<Global>() && Checker(w).equiv(nom, new_nom, nullptr)) return map(nom);
@@ -276,9 +276,9 @@ const Def* ClosConv::closure_type(const Pi* pi, Def2Def& subst, const Def* env_t
     auto ct       = ctype(w, new_doms, env_type);
     if (!env_type) {
         glob_noms_.emplace(pi, ct);
-        w.DLOG("C-TYPE: pct {} ~~> {}", pi, ct);
+        // w.DLOG("C-TYPE: pct {} ~~> {}", pi, ct);
     } else {
-        w.DLOG("C-TYPE: ct {}, env = {} ~~> {}", pi, env_type, ct);
+        // w.DLOG("C-TYPE: ct {}, env = {} ~~> {}", pi, env_type, ct);
     }
     return ct;
 }
@@ -294,7 +294,7 @@ ClosConv::ClosureStub ClosConv::make_stub(const DefSet& fvs, Lam* old_lam, Def2D
     if (!isa_workable(old_lam)) {
         auto new_ext_type = w.cn(clos_remove_env(new_fn_type->dom()));
         auto new_ext_lam  = old_lam->stub(w, new_ext_type, w.dbg(old_lam->name()));
-        w.DLOG("wrap ext lam: {} -> stub: {}, ext: {}", old_lam, new_lam, new_ext_lam);
+        // w.DLOG("wrap ext lam: {} -> stub: {}, ext: {}", old_lam, new_lam, new_ext_lam);
         if (old_lam->is_set()) {
             old_lam->make_internal();
             new_ext_lam->make_external();
@@ -307,7 +307,7 @@ ClosConv::ClosureStub ClosConv::make_stub(const DefSet& fvs, Lam* old_lam, Def2D
     } else {
         new_lam->set(old_lam->filter(), old_lam->body());
     }
-    w.DLOG("STUB {} ~~> ({}, {})", old_lam, env, new_lam);
+    // w.DLOG("STUB {} ~~> ({}, {})", old_lam, env, new_lam);
     auto closure = ClosureStub{old_lam, num_fvs, env, new_lam};
     closures_.emplace(old_lam, closure);
     closures_.emplace(closure.fn, closure);
@@ -335,12 +335,12 @@ static bool is_memop_res(const Def* fd) {
 }
 
 void FreeDefAna::split_fd(Node* node, const Def* fd, bool& init_node, NodeQueue& worklist) {
-    assert(!match<mem::M>(fd) && "mem tokens must not be free");
+    assert(!match<mem::M>(fd->type()) && "mem tokens must not be free");
     if (is_toplevel(fd)) return;
     if (auto [var, lam] = ca_isa_var<Lam>(fd); var && lam) {
         if (var != lam->ret_var()) node->fvs.emplace(fd);
-    } else if (auto q = match(clos::nonlocal, fd)) {
-        node->fvs.emplace(q);
+    } else if (auto q = match(clos::nonlocal, fd); q && q->arg() != node->nom) {
+        node->fvs.emplace(fd);
     } else if (auto pred = fd->isa_nom()) {
         if (pred != node->nom) {
             auto [pnode, inserted] = build_node(pred, worklist);
@@ -383,14 +383,14 @@ void FreeDefAna::run(NodeQueue& worklist) {
     while (!worklist.empty()) {
         auto node = worklist.front();
         worklist.pop();
-        // w.DLOG("FA: iter {}: {}", iter, node->nom);
+        world().DLOG("FA: iter {}: {}", iter, node->nom);
         if (is_done(node)) continue;
         auto changed = is_bot(node);
         mark(node);
         for (auto p : node->preds) {
             auto& pfvs = p->fvs;
             for (auto&& pfv : pfvs) changed |= node->fvs.insert(pfv).second;
-            // w.DLOG("\tFV({}) ∪= FV({}) = {{{, }}}\b", node->nom, p->nom, pfvs);
+            world().DLOG("\tFV({}) ∪= FV({}) = {{{, }}}\b", node->nom, p->nom, pfvs);
         }
         if (changed) {
             for (auto s : node->succs) { worklist.push(s); }
