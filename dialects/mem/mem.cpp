@@ -23,15 +23,16 @@ extern "C" THORIN_EXPORT DialectInfo thorin_get_dialect_info() {
     return {"mem",
             [](PipelineBuilder& builder) {
         builder.extend_opt_phase([](PassMan& man) {
-            auto br = man.add<BetaRed>();
-            auto er = man.add<EtaRed>();
-            auto ee = man.add<EtaExp>(er);
-            man.add<mem::SSAConstr>(ee);
-            man.add<mem::CopyProp>(br, ee);
+            // auto br = man.add<BetaRed>();
+            // auto er = man.add<EtaRed>();
+            // auto ee = man.add<EtaExp>(er);
+            // man.add<mem::SSAConstr>(ee);
+            // man.add<mem::CopyProp>(br, ee);
         });
         builder.extend_codegen_prep_phase([](PassMan& man) {
             man.add<mem::RememElim>();
             man.add<mem::Alloc2Malloc>();
+            man.add<mem::NormDialectTypeSize>();
         });
             },
             nullptr, [](Normalizers& normalizers) { mem::register_normalizers(normalizers); }};
