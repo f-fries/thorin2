@@ -57,18 +57,6 @@ const Def* ClosConvPrep::AnnotRet::rewrite(const Def* old_def) {
     return old_def;
 }
 
-bool ClosConvPrep::AnnotNonLoc::is_free_bb(const Def* def) { 
-    Lam* ifs = is_retvar_of(def);
-    if (!ifs) {
-        if (auto bb = is_bb(def)) ifs = get_ifs(bb);
-    }
-
-    // There are two possible cases if !ifs:
-    // (1) def is neither a BB-lam or retvar; 
-    // (b) def's ifs has not been visited => def is a toplevel (free & closed) BB-like lam.
-    return ifs && !nonloc_wrapper_.contains(curr_nom()) && ifs != get_ifs(curr_nom());
-}
-
 void ClosConvPrep::AnnotNonLoc::enter() {
     if (curr_nom()->type()->is_returning() && !visited_fncs_.contains(curr_nom())) {
         visited_fncs_.emplace(curr_nom()); // We only do this once since we track all new lam's via set_ifs(). 
@@ -80,11 +68,18 @@ void ClosConvPrep::AnnotNonLoc::enter() {
 
 const Def* ClosConvPrep::AnnotNonLoc::rewrite(const Def* old_def) {
     auto& w = world();
+    auto cur_ifs = get_ifs(curr_nom());
+    assert(cur_ifs);
     for (size_t i = 0; i < old_def->num_ops(); i++) {
         auto cur_op = old_def->op(i);
-        if (is_free_bb(cur_op)) {
+        if (auto bb_lam = is_bb(cur_op); bb_lam && !nonloc_wrapper_.contains(bb_lam) && cur_ifs != get_ifs(bb_lam)) {
+            if (!get_ifs(bb_lam)) err("clos_conv_prep: in {}: found live toplevel basic block {}", curr_nom(), bb_lam);
             w.DLOG("found free bb: {}", cur_op);
-            return old_def->refine(i, eta_wrap(clos::nonlocal, cur_op, "eta_free"));
+            return old_def->refine(i, eta_wrap(clos::nonlocal, cur_op, "eta_free", bb_lam));
+        }
+        if (auto lam = is_retvar_of(cur_op); lam && lam != cur_ifs) {
+            w.DLOG("found free return: {}", cur_op);
+            return old_def->refine(i, eta_wrap(clos::nonlocal, cur_op, "eta_free", lam));
         }
         if (isa_callee(old_def, i) || match<clos>(old_def)) continue;
         if (auto bb_lam = is_bb(cur_op); bb_lam && bb_lam->is_basicblock()) {

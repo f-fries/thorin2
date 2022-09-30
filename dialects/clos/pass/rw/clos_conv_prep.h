@@ -57,8 +57,8 @@ protected:
 
         /// Set bblam%s IFS to the IFS of `curr_nom()`.
         /// We need to track the IFS of all continuations that are created. 
-        void set_ifs(Lam* bblam) {
-            auto ifs = get_ifs(curr_nom());
+        void set_ifs(Lam* bblam, Lam* parent = {}) {
+            auto ifs = get_ifs(parent ? parent : curr_nom());
             bb2ifs_[bblam] = ifs;
             world().DLOG("scope {} -> {}", bblam, ifs);
         }
@@ -69,7 +69,7 @@ protected:
         }
 
         /// η-expand def and tag the wrapper with c. 
-        auto eta_wrap(clos c, const Def* def, const std::string& dbg = {}) {
+        auto eta_wrap(clos c, const Def* def, const std::string& dbg = {}, Lam* parent = {}) {
             auto& w = def->world();
             auto [entry, inserted] = old2wrapper_.emplace(annot<false>(c, def), nullptr);
             auto& wrapper = entry->second;
@@ -77,13 +77,11 @@ protected:
                 wrapper = w.nom_lam(def->type()->as<Pi>(), w.dbg(dbg));
                 wrapper->as_nom<Lam>()->app(false, def, wrapper->as_nom<Lam>()->var());
                 w.DLOG("η-expand: {} -> {}", def, op(c, wrapper));
-                set_ifs(wrapper->as_nom<Lam>());
+                set_ifs(wrapper->as_nom<Lam>(), parent);
                 if (c == clos::nonlocal) nonloc_wrapper_.emplace(wrapper->as_nom<Lam>());
             }
             return annot(c, wrapper);
         }
-
-        bool is_free_bb(const Def* def);
 
         /// @name PassMan hooks 
         /// @{
