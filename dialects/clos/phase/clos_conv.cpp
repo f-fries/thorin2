@@ -207,7 +207,7 @@ const Def* ClosConv::rewrite(const Def* def, Def2Def& subst) {
             return new_lam;
         }
         return rewrite(q->arg(), subst);
-    } else if (auto q = match<clos>(def); q && q.flags() == clos::nonlocal) {
+    } else if (auto q = match<clos>(def); q && (q.flags() == clos::freeBB || q.flags() == clos::fstclassBB)) {
         // Note: Same thing about η-conversion applies here
         auto bb_lam = q->arg()->isa_nom<Lam>();
         assert(bb_lam && bb_lam->is_basicblock());
@@ -339,7 +339,7 @@ void FreeDefAna::split_fd(Node* node, const Def* fd, bool& init_node, NodeQueue&
     if (is_toplevel(fd)) return;
     if (auto [var, lam] = ca_isa_var<Lam>(fd); var && lam) {
         if (var != lam->ret_var()) node->fvs.emplace(fd);
-    } else if (auto q = match(clos::nonlocal, fd); q && q->arg() != node->nom) {
+    } else if (auto q = match(clos::freeBB, fd); q && q->arg() != node->nom) {
         node->fvs.emplace(fd);
     } else if (auto pred = fd->isa_nom()) {
         if (pred != node->nom) {

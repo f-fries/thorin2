@@ -31,7 +31,7 @@ void ClosConvPrep::AnnotBr::enter() {
 }
 
 const Def* ClosConvPrep::AnnotBr::rewrite(const Def* old_def) {
-    // We really only need to expand retvars in branches but this simpliefies the other rules.
+    // We really only need to expand retvars in branches but this simplifies the other rules.
     if (auto br = match(clos::br, old_def); br && !br->arg()->isa_nom<Lam>()) {
         return annot_nonloc_->eta_wrap(clos::br, br->arg(), "eta_br");
     }
@@ -75,20 +75,20 @@ const Def* ClosConvPrep::AnnotNonLoc::rewrite(const Def* old_def) {
         if (auto bb_lam = is_bb(cur_op); bb_lam && !nonloc_wrapper_.contains(bb_lam) && cur_ifs != get_ifs(bb_lam)) {
             if (!get_ifs(bb_lam)) err("clos_conv_prep: in {}: found live toplevel basic block {}", curr_nom(), bb_lam);
             w.DLOG("found free bb: {}", cur_op);
-            return old_def->refine(i, eta_wrap(clos::nonlocal, cur_op, "eta_free", bb_lam));
+            return old_def->refine(i, eta_wrap(clos::freeBB, cur_op, "eta_free", bb_lam));
         }
         if (auto lam = is_retvar_of(cur_op); lam && lam != cur_ifs) {
             w.DLOG("found free return: {}", cur_op);
-            return old_def->refine(i, eta_wrap(clos::nonlocal, cur_op, "eta_free", lam));
+            return old_def->refine(i, eta_wrap(clos::freeBB, cur_op, "eta_free", lam));
         }
         if (isa_callee(old_def, i) || match<clos>(old_def)) continue;
         if (auto bb_lam = is_bb(cur_op); bb_lam && bb_lam->is_basicblock()) {
             w.DLOG("found firstclass bb: {}", cur_op);
-            return old_def->refine(i, eta_wrap(clos::nonlocal, cur_op, "eta_ext"));
+            return old_def->refine(i, eta_wrap(clos::fstclassBB, cur_op, "eta_ext"));
         }
         if (is_retvar_of(cur_op)) {
-            w.DLOG("found firstclass retvar: {}", cur_op);
-            return old_def->refine(i, eta_wrap(clos::nonlocal, cur_op, "eta_ext"));
+            w.DLOG("found firstclass return: {}", cur_op);
+            return old_def->refine(i, eta_wrap(clos::fstclassBB, cur_op, "eta_ext"));
         }
     }
     return old_def;

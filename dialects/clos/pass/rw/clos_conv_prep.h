@@ -78,7 +78,7 @@ protected:
                 wrapper->as_nom<Lam>()->app(false, def, wrapper->as_nom<Lam>()->var());
                 w.DLOG("η-expand: {} -> {}", def, op(c, wrapper));
                 set_ifs(wrapper->as_nom<Lam>(), parent);
-                if (c == clos::nonlocal) nonloc_wrapper_.emplace(wrapper->as_nom<Lam>());
+                if (c == clos::freeBB || c == clos::fstclassBB) nonloc_wrapper_.emplace(wrapper->as_nom<Lam>());
             }
             return annot(c, wrapper);
         }
@@ -93,7 +93,7 @@ protected:
         Def2Def old2wrapper_; 
         Lam2Lam bb2ifs_;      
         LamSet visited_fncs_;
-        LamSet nonloc_wrapper_;  ///< η-wrapper for nonlocal BB. These are ignored when computing free BBs.
+        LamSet nonloc_wrapper_;  ///< η-wrapper for nonlocal BBs. These are ignored when computing free BBs.
     };
 
     class AnnotBr : public RWPass<AnnotBr, Lam> {
