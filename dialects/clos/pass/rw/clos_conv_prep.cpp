@@ -24,13 +24,13 @@ void ClosConvPrep::AnnotBr::enter() {
     }
 }
 
-const Def* ClosConvPrep::AnnotBr::rewrite(const Def* old_def) {
-    // We really only need to expand retvars in branches but this simplifies the other rules.
-    if (auto br = match(clos::br, old_def); br && !br->arg()->isa_nom<Lam>()) {
-        return annot_nonloc_->eta_wrap(clos::br, br->arg(), "eta_br");
-    }
-    return old_def;
-}
+// const Def* ClosConvPrep::AnnotBr::rewrite(const Def* old_def) {
+//     // We really only need to expand retvars in branches but this simplifies the other rules.
+//     if (auto br = match(clos::br, old_def); br && !br->arg()->isa_nom<Lam>()) {
+//         return annot_nonloc_->eta_wrap(clos::br, br->arg(), "eta_br");
+//     }
+//     return old_def;
+// }
 
 void ClosConvPrep::AnnotRet::enter() {
     if (auto app = curr_nom()->body()->isa<App>(); app && app->callee_type()->is_returning()) {
@@ -43,13 +43,13 @@ void ClosConvPrep::AnnotRet::enter() {
     }
 }
 
-const Def* ClosConvPrep::AnnotRet::rewrite(const Def* old_def) {
-    if (auto retcn = match(clos::ret, old_def)) {
-        if (retcn->arg()->isa_nom<Lam>() || is_retvar_of(retcn->arg())) return old_def;
-        return annot_nonloc_->eta_wrap(clos::ret, retcn->arg(), "eta_ret");
-    }
-    return old_def;
-}
+// const Def* ClosConvPrep::AnnotRet::rewrite(const Def* old_def) {
+//     if (auto retcn = match(clos::ret, old_def)) {
+//         if (retcn->arg()->isa_nom<Lam>() || is_retvar_of(retcn->arg())) return old_def;
+//         return annot_nonloc_->eta_wrap(clos::ret, retcn->arg(), "eta_ret");
+//     }
+//     return old_def;
+// }
 
 void ClosConvPrep::AnnotNonLoc::enter() {
     if (curr_nom()->type()->is_returning() && !visited_fncs_.contains(curr_nom())) {
@@ -75,15 +75,19 @@ const Def* ClosConvPrep::AnnotNonLoc::rewrite(const Def* old_def) {
             w.DLOG("found free return: {}", cur_op);
             return old_def->refine(i, eta_wrap(clos::freeBB, cur_op, "eta_free", lam));
         }
-        if (isa_callee(old_def, i) || match<clos>(old_def)) continue;
-        if (auto bb_lam = is_bb(cur_op); bb_lam && bb_lam->is_basicblock()) {
-            w.DLOG("found firstclass bb: {}", cur_op);
-            return old_def->refine(i, eta_wrap(clos::fstclassBB, cur_op, "eta_ext"));
+        if (is_retvar_of(cur_op) && !match(clos::ret, old_def)) {
+            w.DLOG("found return outside %ret: {}");
+            return old_def->refine(i, eta_wrap(clos::bot, cur_op, "eta_ret"));
         }
-        if (is_retvar_of(cur_op)) {
-            w.DLOG("found firstclass return: {}", cur_op);
-            return old_def->refine(i, eta_wrap(clos::fstclassBB, cur_op, "eta_ext"));
-        }
+        // if (isa_callee(old_def, i) || match<clos>(old_def)) continue;
+        // if (auto bb_lam = is_bb(cur_op); bb_lam && bb_lam->is_basicblock()) {
+        //     w.DLOG("found firstclass bb: {}", cur_op);
+        //     return old_def->refine(i, eta_wrap(clos::fstclassBB, cur_op, "eta_ext"));
+        // }
+        // if (is_retvar_of(cur_op)) {
+        //     w.DLOG("found firstclass return: {}", cur_op);
+        //     return old_def->refine(i, eta_wrap(clos::fstclassBB, cur_op, "eta_ext"));
+        // }
     }
     return old_def;
 }

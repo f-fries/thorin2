@@ -103,7 +103,7 @@ protected:
             , annot_nonloc_(annot_nonloc) {}
 
         void enter() override;
-        const Def* rewrite(const Def* old_def) override;
+        // const Def* rewrite(const Def* old_def) override;
 
     private:
         AnnotNonLoc* annot_nonloc_;
@@ -116,7 +116,7 @@ protected:
             , annot_nonloc_(annot_nonloc) {};
 
         void enter() override;
-        const Def* rewrite(const Def* old) override;
+        // const Def* rewrite(const Def* old) override;
 
     private:
         AnnotNonLoc* annot_nonloc_;
