@@ -30,16 +30,16 @@
     loop_head (mem, 0:i32)
 };
 
-.cn .extern evil_f [mem: M, i:i32, continue:.Cn M, ret:.Cn M] = {
-    .let (dmem, c) = MOD (mem, i, 2:i32);
-    .let cont = (continue, ret)#(TO_BOOL c);
-    printInteger (dmem, c, cont)
-};
+/* ucn .extern evil_f [mem: M, i:i32, continue:.Cn M, ret:.Cn M] = { */
+/*     .let (dmem, c) = MOD (mem, i, 2:i32); */
+/*     .let cont = (continue, ret)#(TO_BOOL c); */
+/*     printInteger (dmem, c, cont) */
+/* }; */
 
-.cn .extern f [mem: M, i:i32, continue:.Cn M, ret:.Cn M] = {
-    .let (dmem, c) = MOD (mem, i, 2:i32);
-    .cn print_cont [mem: M] = {
-        (continue, ret)#(TO_BOOL c) mem
-    };
-    printInteger(mem, c, print_cont)
-};
+/* .cn .extern f [mem: M, i:i32, continue:.Cn M, ret:.Cn M] = { */
+/*     .let (dmem, c) = MOD (mem, i, 2:i32); */
+/*     .cn print_cont [mem: M] = { */
+/*         (continue, ret)#(TO_BOOL c) mem */
+/*     }; */
+/*     printInteger(mem, c, print_cont) */
+/* } */;
