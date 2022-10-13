@@ -104,15 +104,20 @@ inline const Def* apply_closure(const Def* closure, Defs args) {
 
 /// @}
 
-// TODO: rename this
 /// Checks is def is the variable of a nom of type N.
 template<class N>
-std::tuple<const Extract*, N*> ca_isa_var(const Def* def) {
+std::tuple<const Extract*, N*> is_var_of(const Def* def) {
     if (auto proj = def->isa<Extract>()) {
         if (auto var = proj->tuple()->isa<Var>(); var && var->nom()->isa<N>())
             return std::tuple(proj, var->nom()->as<N>());
     }
     return {nullptr, nullptr};
+}
+
+inline Lam* is_retvar_of(const Def* def) {
+    if (auto [var, lam] = is_var_of<Lam>(def); var && lam && var == lam->ret_var())
+        return lam;
+    return nullptr;
 }
 
 /// @name closure types

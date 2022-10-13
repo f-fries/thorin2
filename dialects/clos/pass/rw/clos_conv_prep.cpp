@@ -9,12 +9,6 @@ static Lam* is_bb(const Def* def) {
     return (bb && bb->is_basicblock()) ? bb : nullptr;
 }
 
-static Lam* is_retvar_of(const Def* def) {
-    if (auto [var, lam] = ca_isa_var<Lam>(def); var && lam && var == lam->ret_var())
-        return lam;
-    return nullptr;
-}
-
 void ClosConvPrep::AnnotBr::enter() {
     if (auto app = curr_nom()->body()->isa<App>(); app && app->callee_type()->is_cn()) {
         auto proj = app->callee()->isa<Extract>();

@@ -24,7 +24,7 @@ static bool interesting_type(const Def* def) {
 static void split(DefSet& out, const Def* def, bool as_callee) {
     if (auto lam = def->isa<Lam>()) {
         out.insert(lam);
-    } else if (auto [var, lam] = ca_isa_var<Lam>(def); var && lam) {
+    } else if (auto [var, lam] = is_var_of<Lam>(def); var && lam) {
         if (var->type()->isa<Pi>() || interesting_type(var)) out.insert(var);
     } else if (auto c = isa_clos_lit(def, false)) {
         split(out, c.fnc(), as_callee);
@@ -53,7 +53,7 @@ undo_t LowerTypedClosPrep::set_esc(const Def* def) {
         if (is_esc(d)) continue;
         if (auto lam = d->isa_nom<Lam>())
             undo = std::min(undo, undo_visit(lam));
-        else if (auto [var, lam] = ca_isa_var<Lam>(d); var && lam)
+        else if (auto [var, lam] = is_var_of<Lam>(d); var && lam)
             undo = std::min(undo, undo_visit(lam));
         world().DLOG("set esc: {}", d);
         esc_.emplace(d);

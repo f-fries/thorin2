@@ -215,7 +215,7 @@ const Def* ClosConv::rewrite(const Def* def, Def2Def& subst) {
         subst[bb_lam]              = clos_pack(w.tuple(), new_lam, rewrite(bb_lam->type(), subst));
         rewrite_body(new_lam, subst);
         return map(subst[bb_lam]);
-    } else if (auto [var, lam] = ca_isa_var<Lam>(def); var && lam && lam->ret_var() == var) {
+    } else if (auto [var, lam] = is_var_of<Lam>(def); var && lam && lam->ret_var() == var) {
         // HACK to rewrite a retvar that is defined in an enclosing lambda
         // If we put external bb's into the env, this should never happen
         auto new_lam = make_stub(lam, subst).fn;
@@ -337,7 +337,7 @@ static bool is_memop_res(const Def* fd) {
 void FreeDefAna::split_fd(Node* node, const Def* fd, bool& init_node, NodeQueue& worklist) {
     assert(!match<mem::M>(fd->type()) && "mem tokens must not be free");
     if (is_toplevel(fd)) return;
-    if (auto [var, lam] = ca_isa_var<Lam>(fd); var && lam) {
+    if (auto [var, lam] = is_var_of<Lam>(fd); var && lam) {
         if (var != lam->ret_var()) node->fvs.emplace(fd);
     } else if (auto q = match(clos::freeBB, fd); q && q->arg() != node->nom) {
         node->fvs.emplace(fd);
