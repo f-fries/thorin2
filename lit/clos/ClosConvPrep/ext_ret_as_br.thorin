@@ -17,7 +17,7 @@
     .cn f [mem_f: M, x: i32, ret_f: .Cn [M, i32]] = {
         .cn if_then [mem_then: M, z: i32] = {
             .let z2 =  MUL (z, 2:i32);
-            ret_f (mem_f, z2)
+            ret_f (mem_then, z2)
         };
         .cn g_cont [mem_g_cont: M, res: i32] = {
             .let i = LT (res, 42:i32);
