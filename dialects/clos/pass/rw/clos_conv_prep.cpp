@@ -75,8 +75,8 @@ const Def* ClosConvPrep::AnnotNonLoc::rewrite(const Def* old_def) {
             w.DLOG("found free return: {}", cur_op);
             return old_def->refine(i, eta_wrap(clos::freeBB, cur_op, "eta_free", lam));
         }
-        if (is_retvar_of(cur_op) && !match(clos::ret, old_def)) {
-            w.DLOG("found return outside %ret: {}");
+        if (is_retvar_of(cur_op) && !isa_callee(old_def, i) && !match(clos::ret, old_def)) {
+            w.DLOG("found return outside %ret: {}", cur_op);
             return old_def->refine(i, eta_wrap(clos::bot, cur_op, "eta_ret"));
         }
         // if (isa_callee(old_def, i) || match<clos>(old_def)) continue;

@@ -157,6 +157,7 @@ void ClosConv::rewrite_body(Lam* new_lam, Def2Def& subst) {
     auto params =
         w.tuple(DefArray(old_fn->num_doms(), [&](auto i) { return new_lam->var(skip_env(i), old_fn->var(i)->dbg()); }));
     subst.emplace(old_fn->var(), params);
+    assert(subst.contains(old_fn->var()));
 
     auto filter = rewrite(new_fn->filter(), subst);
     auto body   = rewrite(new_fn->body(), subst);
@@ -203,6 +204,11 @@ const Def* ClosConv::rewrite(const Def* def, Def2Def& subst) {
             wrapper->set_filter(false);
             return wrapper;
         }
+        return rewrite(q->arg(), subst);
+    } else if (auto lam = is_retvar_of(def)) {
+        // We can't rebuild def here because we will compute a closure type for
+        // retvar instead of a continuation type
+        return map(make_stub(lam, subst).fn->ret_var());
     }
 
     auto new_type = rewrite(def->type(), subst);
@@ -228,8 +234,6 @@ const Def* ClosConv::rewrite(const Def* def, Def2Def& subst) {
         else
             return map(def->rebuild(w, new_type, new_ops, new_dbg));
     }
-
-    thorin::unreachable();
 }
 
 Def* ClosConv::rewrite_nom(Def* nom, const Def* new_type, const Def* new_dbg, Def2Def& subst) {
@@ -276,7 +280,7 @@ ClosConv::ClosureStub ClosConv::make_stub(const DefSet& fvs, Lam* old_lam, Def2D
     if (!isa_workable(old_lam)) {
         auto new_ext_type = w.cn(clos_remove_env(new_fn_type->dom()));
         auto new_ext_lam  = old_lam->stub(w, new_ext_type, w.dbg(old_lam->name()));
-        // w.DLOG("wrap ext lam: {} -> stub: {}, ext: {}", old_lam, new_lam, new_ext_lam);
+        w.DLOG("wrap ext lam: {} -> stub: {}, ext: {}", old_lam, new_lam, new_ext_lam);
         if (old_lam->is_set()) {
             old_lam->make_internal();
             new_ext_lam->make_external();
@@ -289,7 +293,7 @@ ClosConv::ClosureStub ClosConv::make_stub(const DefSet& fvs, Lam* old_lam, Def2D
     } else {
         new_lam->set(old_lam->filter(), old_lam->body());
     }
-    // w.DLOG("STUB {} ~~> ({}, {})", old_lam, env, new_lam);
+    w.DLOG("STUB {} ~~> ({}, {})", old_lam, env, new_lam);
     auto closure = ClosureStub{old_lam, num_fvs, env, new_lam};
     closures_.emplace(old_lam, closure);
     closures_.emplace(closure.fn, closure);
