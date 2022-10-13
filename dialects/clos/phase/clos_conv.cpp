@@ -193,34 +193,16 @@ const Def* ClosConv::rewrite(const Def* def, Def2Def& subst) {
         // w.DLOG("RW: pack {} ~> {} : {}", lam, closure, closure_type);
         return map(closure);
     } else if (auto q = match(clos::ret, def)) {
-        if (auto ret_lam = q->arg()->isa_nom<Lam>()) {
-            assert(ret_lam && ret_lam->is_basicblock());
-            // Note: This should be cont_lam's only occurance after η-expansion, so its okay to
-            // put into the local subst only
-            auto new_doms  = DefArray(ret_lam->num_doms(), [&](auto i) { return rewrite(ret_lam->dom(i), subst); });
-            auto new_lam   = ret_lam->stub(w, w.cn(new_doms), ret_lam->dbg());
-            subst[ret_lam] = new_lam;
-            if (ret_lam->is_set()) {
-                new_lam->set_filter(rewrite(ret_lam->filter(), subst));
-                new_lam->set_body(rewrite(ret_lam->body(), subst));
-            }
-            return new_lam;
+        if (!is_retvar_of(q->arg())) {
+            auto ret_type = q->arg()->type()->isa<Pi>();
+            assert(ret_type && ret_type->is_basicblock());
+            auto new_ret = rewrite(q->arg(), subst);
+            assert(isa_clos_type(new_ret->type()));
+            auto wrapper = w.nom_lam(rewrite_cont_type(ret_type, subst), w.dbg("eta_ret"));
+            wrapper->set_body(clos_apply(new_ret, wrapper->var()));
+            wrapper->set_filter(false);
+            return wrapper;
         }
-        return rewrite(q->arg(), subst);
-    } else if (auto q = match<clos>(def); q && (q.flags() == clos::freeBB || q.flags() == clos::fstclassBB)) {
-        // Note: Same thing about η-conversion applies here
-        auto bb_lam = q->arg()->isa_nom<Lam>();
-        assert(bb_lam && bb_lam->is_basicblock());
-        auto [_, __, ___, new_lam] = make_stub({}, bb_lam, subst);
-        subst[bb_lam]              = clos_pack(w.tuple(), new_lam, rewrite(bb_lam->type(), subst));
-        rewrite_body(new_lam, subst);
-        return map(subst[bb_lam]);
-    } else if (auto [var, lam] = is_var_of<Lam>(def); var && lam && lam->ret_var() == var) {
-        // HACK to rewrite a retvar that is defined in an enclosing lambda
-        // If we put external bb's into the env, this should never happen
-        auto new_lam = make_stub(lam, subst).fn;
-        auto new_idx = skip_env(as_lit(var->index()));
-        return map(new_lam->var(new_idx));
     }
 
     auto new_type = rewrite(def->type(), subst);
