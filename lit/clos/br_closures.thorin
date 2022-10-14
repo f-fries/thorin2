@@ -1,0 +1,32 @@
+.import mem;
+.import core;
+
+.let i32 = %Int 4294967296;
+.let i8 = %Int 256;
+.let M = %mem.M;
+
+.let ADD = %core.wrap.add (0, 4294967296);
+.let SUB = %core.wrap.sub (0, 4294967296);
+.let MUL = %core.wrap.mul (0, 4294967296);
+.let EQ = %core.icmp.e 4294967296;
+
+.cn g [M, i32, i32, .Cn [M, i32]];
+
+.cn .extern f [m:M, a:i32, b:i32, c:i32, d:i32, e:i32, ret: .Cn [M, i32]] = {
+    .cn if_join [m:M, r:i32] = {
+        ret (m, ADD (e, r))
+    };
+
+    .cn g_cont [m:M, r:i32] = {
+        .cn if_then [m:M] = {
+            if_join (m, ADD (a, b))
+        };
+        .cn if_else [m:M] = {
+            if_join (m, MUL (r, SUB (c, d)))
+        };
+        .let i = EQ (r, 0:i32);
+        (if_then, if_else)#i m
+    };
+    
+    g (m, e, 42:i32, g_cont)
+};

@@ -9,16 +9,19 @@
 
 namespace thorin::clos {
 
+/// BranchClosElim η-expands closures in branches, which enables CopyProp
+/// to specialize their environment.
+
 class BranchClosElim : public RWPass<BranchClosElim, Lam> {
 public:
     BranchClosElim(PassMan& man)
-        : RWPass(man, "unbox_closures")
-        , branch2dropped_() {}
+        : RWPass(man, "branch_clos_elim")
+        , clos2wrapper_() {}
 
-    const Def* rewrite(const Def*) override;
+    void enter() override;
 
 private:
-    DefMap<Lam*> branch2dropped_;
+    DefMap<Lam*> clos2wrapper_;
 };
 
 }; // namespace thorin::clos

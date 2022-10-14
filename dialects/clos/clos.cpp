@@ -65,28 +65,25 @@ extern "C" THORIN_EXPORT DialectInfo thorin_get_dialect_info() {
                 builder.extend_opt_phase([](PassMan& man) {
                     clos::ClosConvPrep::addPasses(man);
                 });
-                // builder.extend_opt_phase([](PassMan& man) {
-                //     man.add<EtaExp>(nullptr);
-                // });
                 builder.extend_opt_phase([](PassMan& man) {
                     man.add<ClosConvWrapper>();
                 });
-                // builder.extend_opt_phase([](PassMan& man) {
-                //     auto er = man.add<EtaRed>(true);
-                //     auto ee = man.add<EtaExp>(er);
-                //     man.add<Scalerize>(ee);
-                //     man.add<clos::ClosConvPrep::CleanupAnnots>();
-                // });
+                builder.extend_opt_phase([](PassMan& man) {
+                    auto er = man.add<EtaRed>(true);
+                    auto ee = man.add<EtaExp>(er);
+                    man.add<Scalerize>(ee);
+                    man.add<clos::ClosConvPrep::CleanupAnnots>();
+                });
 
                 //lower_closures
 
-                // builder.extend_opt_phase([](PassMan& man) {
-                //     man.add<Scalerize>(nullptr);
-                //     man.add<clos::BranchClosElim>();
-                //     man.add<mem::CopyProp>(nullptr, nullptr, true);
-                //     man.add<clos::LowerTypedClosPrep>();
+                builder.extend_opt_phase([](PassMan& man) {
+                    man.add<Scalerize>(nullptr);
+                    man.add<clos::BranchClosElim>();
+                    man.add<mem::CopyProp>(nullptr, nullptr, true);
+                    man.add<clos::LowerTypedClosPrep>();
                 //     man.add<clos::Clos2SJLJ>();
-                // });
+                });
 
                 // builder.extend_opt_phase([](PassMan& man) {
                 //     man.add<LowerTypedClosWrapper>();
