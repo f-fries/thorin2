@@ -31,6 +31,12 @@ class Clos2SJLJ : public FPPass<Clos2SJLJ, Lam> {
         const Def* arg_buf_type() { return mem::type_ptr(world().sigma()); }
         const Def* tag_type() { return world().type_int_width(tag_size); }
 
+        const Def* get_dbg(const std::string& prefix, const Def* def = nullptr) {
+            def = def ? def : curr_nom();
+            auto name = def->name().empty() ? prefix : prefix + "_" + def->name();
+            return def->world().dbg(name);
+        }
+
         Lam* get_throw(const Def* res_type);
         Lam* get_lpad(ClosLit clos);
         Lam* wrap_app(const App* app);

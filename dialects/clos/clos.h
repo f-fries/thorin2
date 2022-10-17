@@ -6,10 +6,12 @@
 
 namespace thorin::clos {
 
-inline const Def* op_alloc_jumpbuf(const Def* mem, const Def* dbg = {}) {
+inline const Def* op_alloc_jumpbuf(const Def* mem, nat_t n, const Def* dbg = {}) {
     World& w = mem->world();
-    return w.app(w.ax<alloc_jmpbuf>(), {w.tuple(), mem}, dbg);
+    return w.app(w.app(w.ax<alloc_jmpbuf>(), w.lit_nat(n)), mem, dbg);
 }
+
+inline const Def* op_alloc_jumpbuf(const Def* mem, const Def* dbg = {}) { return op_alloc_jumpbuf(mem, 0, dbg); }
 inline const Def* op_setjmp(const Def* mem, const Def* buf, const Def* dbg = {}) {
     World& w = mem->world();
     return w.app(w.ax<setjmp>(), {mem, buf}, dbg);

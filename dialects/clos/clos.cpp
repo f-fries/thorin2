@@ -62,7 +62,7 @@ extern "C" THORIN_EXPORT DialectInfo thorin_get_dialect_info() {
                     auto ee = man.add<EtaExp>(er);
                     man.add<Scalerize>(ee);
                     man.add<clos::BranchClosElim>();
-                    man.add<clos::LowerTypedClosPrep>();
+                    // man.add<clos::LowerTypedClosPrep>();
                     man.add<mem::CopyProp>(nullptr, ee, true);
                 });
                 // builder.extend_opt_phase([](PassMan& man) {
@@ -79,9 +79,7 @@ extern "C" THORIN_EXPORT DialectInfo thorin_get_dialect_info() {
                 // //     man.add<clos::Clos2SJLJ>();
                 // });
 
-                // builder.extend_opt_phase([](PassMan& man) {
-                //     man.add<LowerTypedClosWrapper>();
-                // });
+                // builder.extend_opt_phase([](PassMan& man) { man.add<LowerTypedClosWrapper>(); });
             },
             nullptr, [](Normalizers& normalizers) { clos::register_normalizers(normalizers); }};
 }
