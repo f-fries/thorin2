@@ -1,6 +1,7 @@
 #include "dialects/clos/phase/clos_conv.h"
 
 #include "thorin/check.h"
+
 #include "thorin/analyses/scope.h"
 
 #include "dialects/mem/mem.h"
@@ -325,7 +326,7 @@ void FreeDefAna::split_fd(Node* node, const Def* fd, bool& init_node, NodeQueue&
     if (is_toplevel(fd)) return;
     if (auto [var, lam] = is_var_of<Lam>(fd); var && lam) {
         if (var != lam->ret_var()) node->fvs.emplace(fd);
-    } else if (auto q = match(clos::freeBB, fd); q && q->arg() != node->nom) {
+    } else if (auto q = match(clos::esc, fd); q && q->arg() != node->nom) {
         node->fvs.emplace(fd);
     } else if (auto pred = fd->isa_nom()) {
         if (pred != node->nom) {
