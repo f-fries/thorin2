@@ -9,6 +9,22 @@ namespace thorin {
 
 namespace clos {
 
+/// ClosConvPrep provides annotations for ClosConv.
+/// It does the following:
+/// - Annotate return-arguments
+/// - η-expand return-vars that are not used as a callee or return-argument
+/// - BB-like Lam%s that cannot be directly lowered to BBs, either because
+///     - they are used as first-class values (stored in memory etc.)
+///     - they appear 'free' inside a nested function:
+///     ```
+///         .cn f [..., ret_f]:
+///             ...
+///             .cn g [..., ret_g]:
+///                 ...
+///                 ret_f (...)
+///     ```
+/// **Important: do not combine this with other passes!**
+
 class ClosConvPrep : public RWPass<ClosConvPrep, Lam> {
 public:
     ClosConvPrep(PassMan& man)
@@ -25,6 +41,7 @@ public:
 
 
     /// Get the innermost enclosing function scope (IFS) for lam.
+    /// This is essentially the function to which a BB-like Lam "belongs".
     /// Note: This may be `nullptr` if @p lam is not contained in any function scope, i.e. lam is a BB and closed.
     Lam* get_ifs(Lam* lam) {
         if (lam->is_returning()) return lam;
@@ -32,7 +49,7 @@ public:
     }
 
     /// Set bblam%s IFS to the IFS of `curr_nom()`.
-    /// We need to track the IFS of all continuations that are created. 
+    /// We need to track the IFS of **all** continuations that are created. 
     void set_ifs(Lam* bblam, Lam* parent = {}) {
         auto ifs = get_ifs(parent ? parent : curr_nom());
         bb2ifs_[bblam] = ifs;
