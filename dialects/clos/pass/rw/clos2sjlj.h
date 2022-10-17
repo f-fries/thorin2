@@ -27,9 +27,8 @@ class Clos2SJLJ : public FPPass<Clos2SJLJ, Lam> {
         void enter() override;
         undo_t analyze(const Def*) override;
 
-        const Def* void_ptr() { return mem::type_ptr(world().type_int_width(8)); }
-        const Def* jump_buf_type() { return void_ptr(); }
-        const Def* arg_buf_type() { return mem::type_ptr(void_ptr()); }
+        const Def* jump_buf_type() { return mem::type_ptr(world().type_int_width(8)); }
+        const Def* arg_buf_type() { return mem::type_ptr(world().sigma()); }
         const Def* tag_type() { return world().type_int_width(tag_size); }
 
         Lam* get_throw(const Def* res_type);

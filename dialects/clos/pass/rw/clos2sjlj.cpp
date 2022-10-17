@@ -26,7 +26,7 @@ void Clos2SJLJ::enter() {
     clos2tag_.clear();
     auto [jm, jb] = op_alloc_jumpbuf(mem::mem_var(curr_nom()))->projs<2>();
     jump_buf_     = jb;
-    auto [am, ab] = mem::op_slot(void_ptr(), jm)->projs<2>();
+    auto [am, ab] = mem::op_slot(arg_buf_type(), jm)->projs<2>();
     arg_buf_ptr_  = ab;
 
     auto args = curr_nom()->vars();
@@ -70,9 +70,9 @@ Lam* Clos2SJLJ::get_throw(const Def* dom) {
     auto [p, inserted] = dom2throw_.emplace(dom, nullptr);
     auto& tlam         = p->second;
     if (inserted || !tlam) {
-        auto pi                       = w.cn(clos_sub_env(dom, w.sigma({jump_buf_type(), arg_buf_type(), tag_type()})));
-        tlam                          = w.nom_lam(pi, w.dbg("throw"));
-        auto args                     = get_args(tlam->var());
+        auto pi   = w.cn(clos_sub_env(dom, w.sigma({jump_buf_type(), mem::type_ptr(arg_buf_type()), tag_type()})));
+        tlam      = w.nom_lam(pi, w.dbg("throw"));
+        auto args = get_args(tlam->var());
         auto [jbuf, arg_buf_ptr, tag] = env_var(tlam)->projs<3>();
         auto [m, arg_buf]             = mem::op_alloc(args->type(), mem::mem_var(tlam))->projs<2>();
         auto m1                       = mem::op_store(m, arg_buf, get_args(tlam->var()));
