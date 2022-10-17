@@ -4,77 +4,65 @@
 
 namespace thorin::clos {
 
-void Clos2SJLJ::get_exn_closures(const Def* def, DefSet& visited) {
-    if (def->sort() != Sort::Term || def->isa_nom<Lam>() || visited.contains(def)) return;
-    visited.emplace(def);
-    if (auto c = isa_clos_lit(def)) {
-        auto lam = c.fnc_as_lam();
-        if (c.is_basicblock() && !ignore_.contains(lam)) {
-            def->world().DLOG("FOUND exn closure: {}", c.fnc_as_lam());
-            lam2tag_[c.fnc_as_lam()] = {lam2tag_.size() + 1, c.env()};
-        }
-        get_exn_closures(c.env(), visited);
-    } else {
-        for (auto op : def->ops()) get_exn_closures(op, visited);
-    }
-}
-
-void Clos2SJLJ::get_exn_closures() {
-    lam2tag_.clear();
-    if (!curr_nom()->is_set() || !curr_nom()->type()->is_cn()) return;
-    auto app = curr_nom()->body()->isa<App>();
-    if (!app) return;
-    if (auto p = app->callee()->isa<Extract>(); p && isa_clos_type(p->tuple()->type())) {
-        auto p2 = p->tuple()->isa<Extract>();
-        if (p2 && p2->tuple()->isa<Tuple>()) {
-            // branch: Check the closure environments, but be careful not to traverse
-            // the closures themselves
-            auto branches = p2->tuple()->ops();
-            for (auto b : branches) {
-                auto c = isa_clos_lit(b);
-                if (c) {
-                    ignore_.emplace(c.fnc_as_lam());
-                    world().DLOG("IGNORE {}", c.fnc_as_lam());
-                }
+undo_t Clos2SJLJ::analyze(const Def* def) {
+    if (auto clos = isa_clos_lit(def); clos && clos.is_basicblock() && !ignore_.contains(clos.fnc_as_lam())) {
+        if (ignore_closed_) {
+            auto&& scope = Scope(clos.fnc_as_lam());
+            if (scope.free_defs().empty()) {
+                ignore_.insert(clos.fnc_as_lam());
+                return No_Undo;
             }
         }
+        world().DLOG("found BB-closure: {}", clos.fnc());
+        has_fstclass_.insert(curr_nom());
+        return curr_undo();
     }
-    auto visited = DefSet();
-    get_exn_closures(app->arg(), visited);
+    return No_Undo;
 }
 
-static std::array<const Def*, 3> split(const Def* def) {
-    auto new_ops = DefArray(def->num_projs() - 2, nullptr);
-    auto& w      = def->world();
-    const Def *mem, *env;
-    auto j = 0;
-    for (size_t i = 0; i < def->num_projs(); i++) {
-        auto op = def->proj(i);
-        if (op == mem::type_mem(w) || op->type() == mem::type_mem(w))
-            mem = op;
-        else if (i == Clos_Env_Param)
-            env = op;
-        else
-            new_ops[j++] = op;
-    }
-    assert(mem && env);
-    auto remaining = (def->sort() == Sort::Term) ? w.tuple(new_ops) : w.sigma(new_ops);
-    if (new_ops.size() == 1 && remaining != new_ops[0]) {
-        // FIXME: For some reason this is not constant folded away??
-        remaining = new_ops[0];
-    }
-    return {mem, env, remaining};
+void Clos2SJLJ::enter() {
+    if (!has_fstclass_.contains(curr_nom())) return;
+    world().DLOG("start rewrite of {}", curr_nom());
+    clos2tag_.clear();
+    auto [jm, jb] = op_alloc_jumpbuf(mem::mem_var(curr_nom()))->projs<2>();
+    jump_buf_     = jb;
+    auto [am, ab] = mem::op_slot(void_ptr(), jm)->projs<2>();
+    arg_buf_ptr_  = ab;
+
+    auto args = curr_nom()->vars();
+    args[0]   = ab;
+    curr_nom()->set(curr_nom()->reduce(world().tuple(args)));
 }
 
-static const Def* rebuild(const Def* mem, const Def* env, Defs remaining) {
-    auto& w      = mem->world();
-    auto new_ops = DefArray(remaining.size() + 2, [&](auto i) {
-        static_assert(Clos_Env_Param == 1);
-        if (i == 0) return mem;
-        if (i == 1) return env;
-        return remaining[i - 2];
-    });
-    return w.tuple(new_ops);
+const Def* Clos2SJLJ::rewrite(const Def* def) {
+    if (!has_fstclass_.contains(curr_nom())) return def;
+    auto& w = world();
+    if (auto clos = isa_clos_lit(def); clos && clos.is_basicblock() && !ignore_.contains(clos.fnc_as_lam())) {
+        w.DLOG("rewrite bb closure {}", clos.fnc_as_lam());
+        auto [_, tag] = clos2tag_.emplace(clos, clos2tag_.size() + 1);
+        auto env      = w.tuple({jump_buf_, arg_buf_ptr_, w.lit_int_width(tag_size, tag)});
+        return clos_pack(env, get_throw(clos.fnc_type()->dom()), clos.type());
+    }
+    if (auto app = def->isa<App>(); app && app->callee_type()->is_cn() && !clos2tag_.empty()) {
+        DefVec branches(clos2tag_.size() + 1);
+        branches[0] = wrap_app(app);
+        for (auto [clos, tag] : clos2tag_) branches[tag] = get_lpad(isa_clos_lit(clos));
+        auto m = app->arg(0);
+        assert(m->type() == mem::type_mem(w));
+        auto [m1, tag] = op_setjmp(m, jump_buf_)->projs<2>();
+        tag            = op(core::conv::s2s, w.type_int(branches.size()), tag);
+        auto branch    = w.extract(w.tuple(branches), tag);
+        clos2tag_.clear();
+        return w.app(branch, m1);
+    }
+    return def;
+}
+
+static const Def* get_args(const Def* args) {
+    auto& w = args->world();
+    args    = clos_remove_env(args);
+    assert(args->proj(0)->type() == mem::type_mem(w));
+    return w.tuple(DefArray(args->num_projs() - 1, [&](auto i) { return args->proj(i + 1); }));
 }
 
 Lam* Clos2SJLJ::get_throw(const Def* dom) {
@@ -82,94 +70,51 @@ Lam* Clos2SJLJ::get_throw(const Def* dom) {
     auto [p, inserted] = dom2throw_.emplace(dom, nullptr);
     auto& tlam         = p->second;
     if (inserted || !tlam) {
-        auto pi                = w.cn(clos_sub_env(dom, w.sigma({jb_type(), rb_type(), tag_type()})));
-        tlam                   = w.nom_lam(pi, w.dbg("throw"));
-        auto [m0, env, var]    = split(tlam->var());
-        auto [jbuf, rbuf, tag] = env->projs<3>();
-        auto [m1, r]           = mem::op_alloc(var->type(), m0)->projs<2>();
-        auto m2                = mem::op_store(m1, r, var);
-        rbuf                   = core::op_bitcast(mem::type_ptr(mem::type_ptr(var->type())), rbuf);
-        auto m3                = mem::op_store(m2, rbuf, r);
-        tlam->set(false, op_longjmp(m3, jbuf, tag));
-        ignore_.emplace(tlam);
+        auto pi                       = w.cn(clos_sub_env(dom, w.sigma({jump_buf_type(), arg_buf_type(), tag_type()})));
+        tlam                          = w.nom_lam(pi, w.dbg("throw"));
+        auto args                     = get_args(tlam->var());
+        auto [jbuf, arg_buf_ptr, tag] = env_var(tlam)->projs<3>();
+        auto [m, arg_buf]             = mem::op_alloc(args->type(), mem::mem_var(tlam))->projs<2>();
+        auto m1                       = mem::op_store(m, arg_buf, get_args(tlam->var()));
+        arg_buf_ptr                   = core::op_bitcast(mem::type_ptr(arg_buf->type()), arg_buf_ptr);
+        auto m2                       = mem::op_store(m1, arg_buf_ptr, arg_buf);
+        tlam->set(false, op_longjmp(m2, jbuf, tag));
+        ignore_.insert(tlam);
     }
     return tlam;
 }
 
-Lam* Clos2SJLJ::get_lpad(Lam* lam, const Def* rb) {
+Lam* Clos2SJLJ::wrap_app(const App* app) {
+    auto [p, inserted] = app2wrapper_.emplace(app, nullptr);
+    auto wrapper       = p->second;
+    if (inserted) {
+        auto& w       = world();
+        wrapper       = w.nom_lam(w.cn(mem::type_mem(w)), w.dbg("sjlj_wrap_app"));
+        auto new_args = app->args();
+        assert(new_args[0]->type() == mem::type_mem(w));
+        new_args[0] = mem::mem_var(wrapper);
+        wrapper->app(false, app->callee(), new_args);
+    }
+    return wrapper;
+}
+
+Lam* Clos2SJLJ::get_lpad(ClosLit clos) {
     auto& w            = world();
-    auto [p, inserted] = lam2lpad_.emplace(w.tuple({lam, rb}), nullptr);
+    auto [p, inserted] = clos2lpad_.emplace(w.tuple({clos, arg_buf_ptr_}), nullptr);
     auto& lpad         = p->second;
     if (inserted || !lpad) {
-        auto [_, env_type, dom] = split(lam->dom());
-        auto pi                 = w.cn(w.sigma({mem::type_mem(w), env_type}));
-        lpad                    = w.nom_lam(pi, w.dbg("lpad"));
-        auto [m, env, __]       = split(lpad->var());
-        auto [m1, arg_ptr]      = mem::op_load(m, rb)->projs<2>();
-        arg_ptr                 = core::op_bitcast(mem::type_ptr(dom), arg_ptr);
-        auto [m2, args]         = mem::op_load(m1, arg_ptr)->projs<2>();
-        auto full_args          = (lam->num_doms() == 3) ? rebuild(m2, env, {args}) : rebuild(m2, env, args->ops());
-        lpad->app(false, lam, full_args);
-        ignore_.emplace(lpad);
+        lpad              = w.nom_lam(w.cn(mem::type_mem(w)), w.dbg("lpad"));
+        auto [m, arg_buf] = mem::op_load(mem::mem_var(lpad), arg_buf_ptr_)->projs<2>();
+        auto arg_type     = get_args(clos.fnc_as_lam()->var())->type();
+        arg_buf           = core::op_bitcast(mem::type_ptr(arg_type), arg_buf);
+        auto [m1, args]   = mem::op_load(m, arg_buf)->projs<2>();
+        assert(Clos_Env_Param == 1);
+        args = w.tuple(DefArray(clos.fnc_type()->num_doms(), [&](auto i) {
+            return i == 0 ? m1 : i == 1 ? clos.env() : args->proj(i - 2);
+        }));
+        lpad->set(clos.fnc_as_lam()->reduce(args));
     }
     return lpad;
-}
-
-void Clos2SJLJ::enter() {
-    auto& w = world();
-    get_exn_closures();
-    if (lam2tag_.empty()) return;
-
-    {
-        auto m0       = mem::mem_var(curr_nom());
-        auto [m1, jb] = op_alloc_jumpbuf(m0)->projs<2>();
-        auto [m2, rb] = mem::op_slot(void_ptr(), m1)->projs<2>();
-
-        auto new_args = curr_nom()->vars();
-        new_args[0]   = m2;
-        curr_nom()->set(curr_nom()->reduce(w.tuple(new_args)));
-
-        cur_jbuf_ = jb;
-        cur_rbuf_ = rb;
-
-        // apparently apply() can change the id of the closures, so we have to do it again :(
-        get_exn_closures();
-    }
-
-    auto body = curr_nom()->body()->as<App>();
-
-    auto branch_type = clos_type(w.cn(mem::type_mem(w)));
-    auto branches    = DefVec(lam2tag_.size() + 1);
-    {
-        auto env             = w.tuple(body->args().skip_front());
-        auto new_callee      = w.nom_lam(w.cn({mem::type_mem(w), env->type()}), w.dbg("sjlj_wrap"));
-        auto [m, env_var, _] = split(new_callee->var());
-        auto new_args = DefArray(env->num_projs() + 1, [&](auto i) { return (i == 0) ? m : env_var->proj(i - 1); });
-        new_callee->app(false, body->callee(), new_args, body->dbg());
-        branches[0] = clos_pack(env, new_callee, branch_type);
-    }
-
-    for (auto [exn_lam, p] : lam2tag_) {
-        auto [i, env] = p;
-        branches[i]   = clos_pack(env, get_lpad(exn_lam, cur_rbuf_), branch_type);
-    }
-
-    auto m0 = body->arg(0);
-    assert(m0->type() == mem::type_mem(w));
-    auto [m1, tag] = op_setjmp(m0, cur_jbuf_)->projs<2>();
-    tag            = op(core::conv::s2s, w.type_int(branches.size()), tag);
-    auto branch    = w.extract(w.tuple(branches), tag);
-    curr_nom()->set_body(clos_apply(branch, m1));
-}
-
-const Def* Clos2SJLJ::rewrite(const Def* def) {
-    if (auto c = isa_clos_lit(def); c && lam2tag_.contains(c.fnc_as_lam())) {
-        auto& w     = world();
-        auto [i, _] = lam2tag_[c.fnc_as_lam()];
-        auto tlam   = get_throw(c.fnc_as_lam()->dom());
-        return clos_pack(w.tuple({cur_jbuf_, cur_rbuf_, w.lit_int(i)}), tlam, c.type());
-    }
-    return def;
 }
 
 } // namespace thorin::clos

@@ -7,39 +7,47 @@
 
 namespace thorin::clos {
 
-class Clos2SJLJ : public RWPass<Clos2SJLJ, Lam> {
-public:
-    Clos2SJLJ(PassMan& man)
-        : RWPass(man, "closure2sjlj")
-        , lam2tag_()
-        , dom2throw_()
-        , lam2lpad_()
-        , ignore_() {}
+class Clos2SJLJ : public FPPass<Clos2SJLJ, Lam> {
+    public:
+        Clos2SJLJ(PassMan& man, bool ignore_closed_ = false)
+            : FPPass(man, "clos2sjlj")
+            , has_fstclass_()
+            , ignore_closed_(ignore_closed_)
+            , ignore_()
+            , dom2throw_()
+            , clos2lpad_()
+            , clos2tag_() {}
 
-    void enter() override;
-    const Def* rewrite(const Def*) override;
+    private:
+        using Def2Lam = DefMap<Lam*>;
 
-private:
-    const Def* void_ptr() { return mem::type_ptr(world().type_int_width(8)); }
-    const Def* jb_type() { return void_ptr(); }
-    const Def* rb_type() { return mem::type_ptr(void_ptr()); }
-    const Def* tag_type() { return world().type_int_width(32); }
+        static const nat_t tag_size = 32;
 
-    Lam* get_throw(const Def* res_type);
-    Lam* get_lpad(Lam* lam, const Def* rb);
+        const Def* rewrite(const Def*) override;
+        void enter() override;
+        undo_t analyze(const Def*) override;
 
-    void get_exn_closures();
-    void get_exn_closures(const Def* def, DefSet& visited);
+        const Def* void_ptr() { return mem::type_ptr(world().type_int_width(8)); }
+        const Def* jump_buf_type() { return void_ptr(); }
+        const Def* arg_buf_type() { return mem::type_ptr(void_ptr()); }
+        const Def* tag_type() { return world().type_int_width(tag_size); }
 
-    // clang-format off
-    LamMap<std::pair<int, const Def*>> lam2tag_;
-    DefMap<Lam*> dom2throw_;
-    DefMap<Lam*> lam2lpad_;
-    LamSet ignore_;
-    // clang-format on
+        Lam* get_throw(const Def* res_type);
+        Lam* get_lpad(ClosLit clos);
+        Lam* wrap_app(const App* app);
 
-    const Def* cur_rbuf_ = nullptr;
-    const Def* cur_jbuf_ = nullptr;
+        LamSet has_fstclass_;
+        const bool ignore_closed_;
+        LamSet ignore_;
+
+        Def2Lam dom2throw_;
+        Def2Lam clos2lpad_;
+        Def2Lam app2wrapper_;
+
+        DefMap<int> clos2tag_;
+        const Def* jump_buf_ = nullptr;
+        const Def* arg_buf_ptr_ = nullptr;
+        const Def* arg_buf_mem_ = nullptr;
 };
 
 } // namespace thorin::clos

@@ -102,6 +102,8 @@ const Def* ClosLit::env() {
     return std::get<2_u64>(clos_unpack(def_));
 }
 
+const Def* ClosLit::env_var() { return thorin::clos::env_var(fnc_as_lam()); }
+
 const Def* ClosLit::fnc() {
     assert(def_);
     return std::get<1_u64>(clos_unpack(def_));
@@ -112,8 +114,6 @@ Lam* ClosLit::fnc_as_lam() {
     if (auto q = match<clos>(f)) f = q->arg();
     return f->isa_nom<Lam>();
 }
-
-const Def* ClosLit::env_var() { return fnc_as_lam()->var(Clos_Env_Param); }
 
 /* Closure Conversion */
 
@@ -193,8 +193,8 @@ const Def* ClosConv::rewrite(const Def* def, Def2Def& subst) {
         auto closure                  = clos_pack(env, new_lam, closure_type);
         // w.DLOG("RW: pack {} ~> {} : {}", lam, closure, closure_type);
         return map(closure);
-    } else if (auto q = match(clos::ret, def)) {
-        if (!is_retvar_of(q->arg())) {
+    } else if (auto q = match<clos>(def)) {
+        if (q.flags() == clos::ret && !is_retvar_of(q->arg())) {
             auto ret_type = q->arg()->type()->isa<Pi>();
             assert(ret_type && ret_type->is_basicblock());
             auto new_ret = rewrite(q->arg(), subst);

@@ -49,7 +49,7 @@ public:
     const Pi* fnc_type() { return fnc()->type()->isa<Pi>(); }
     Lam* fnc_as_lam();
 
-    const Def* env_var();
+    const Def* env_var(); 
     const Def* ret_var() { return fnc_as_lam()->ret_var(); }
     ///@}
 
@@ -143,6 +143,8 @@ std::tuple<Lam*, const Def*, const Def*> clos_lam_stub(const Def* env_type, cons
 
 /// Describes where the environment is placed in the argument list.
 const size_t Clos_Env_Param = 1_u64;
+
+inline const Def* env_var(Lam* lam) { return lam->var(Clos_Env_Param); }
 
 const Def* clos_insert_env(size_t i, const Def* env, std::function<const Def*(size_t)> f);
 inline const Def* clos_insert_env(size_t i, const Def* env, const Def* a) {

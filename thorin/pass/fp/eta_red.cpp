@@ -9,9 +9,9 @@ static bool is_var(const Def* def) {
 }
 
 /// For now, only η-reduce `lam x.e x` if e is a @p Var or a @p Lam.
-static const App* eta_rule(Lam* lam) {
+const App* EtaRed::eta_rule(Lam* lam) {
     if (auto app = lam->body()->isa<App>()) {
-        if (app->arg() == lam->var() && (is_var(app->callee()) || app->callee()->isa<Lam>())) return app;
+        if (app->arg() == lam->var() && ((!lam_only_ && is_var(app->callee())) || app->callee()->isa<Lam>())) return app;
     }
     return nullptr;
 }
@@ -19,7 +19,7 @@ static const App* eta_rule(Lam* lam) {
 const Def* EtaRed::rewrite(const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         // TODO (ClosureConv): Factor this out
-        if (auto lam = def->op(i)->isa_nom<Lam>(); (!callee_only_ || isa_callee(def, i)) && lam && lam->is_set()) {
+        if (auto lam = def->op(i)->isa_nom<Lam>(); lam && lam->is_set()) {
             if (auto app = eta_rule(lam); app && !irreducible_.contains(lam)) {
                 data().emplace(lam, Lattice::Reduce);
                 auto new_def = def->refine(i, app->callee());
