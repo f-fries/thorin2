@@ -20,23 +20,8 @@
 
 using namespace thorin;
 
-template<class P>
-class PhasePassWrapper : public RWPass<PhasePassWrapper<P>, Lam> {
-public:
-    template<typename... Args>
-    PhasePassWrapper(PassMan& man, Args&&... args)
-        : RWPass<PhasePassWrapper<P>, Lam>(man, "phase_wrapper")
-        , phase_(man.world(), std::forward<Args>(args)...){};
-
-    void prepare() override { phase_.start(); }
-
-private:
-    P phase_;
-};
-
 class ClosConvWrapper : public RWPass<ClosConvWrapper, Lam> {
 public:
-    bool single = true;
     ClosConvWrapper(PassMan& man)
         : RWPass(man, "clos_conv") {}
 
@@ -54,32 +39,21 @@ public:
 extern "C" THORIN_EXPORT DialectInfo thorin_get_dialect_info() {
     return {"clos",
             [](PipelineBuilder& builder) {
-                // closure_conv
+                // closure conv
                 builder.extend_opt_phase([](PassMan& man) { man.add<clos::ClosConvPrep>(); });
                 builder.extend_opt_phase([](PassMan& man) { man.add<ClosConvWrapper>(); });
+
+                // lower closures + cleanup
                 builder.extend_opt_phase([](PassMan& man) {
                     auto er = man.add<EtaRed>(true);
                     auto ee = man.add<EtaExp>(er);
                     man.add<Scalerize>(ee);
                     man.add<clos::BranchClosElim>();
-                    // man.add<clos::LowerTypedClosPrep>();
                     man.add<mem::CopyProp>(nullptr, ee, true);
                 });
-                // builder.extend_opt_phase([](PassMan& man) {
-                // });
                 builder.extend_opt_phase([](PassMan& man) { man.add<clos::Clos2SJLJ>(); });
-
-                // lower_closures
-
-                // builder.extend_opt_phase([](PassMan& man) {
-                //     man.add<Scalerize>(nullptr);
-                //     man.add<clos::BranchClosElim>();
-                //     man.add<mem::CopyProp>(nullptr, nullptr, true);
-                //     man.add<clos::LowerTypedClosPrep>();
-                // //     man.add<clos::Clos2SJLJ>();
-                // });
-
-                // builder.extend_opt_phase([](PassMan& man) { man.add<LowerTypedClosWrapper>(); });
+                builder.extend_opt_phase([](PassMan& man) { man.add<clos::LowerTypedClosPrep>(); });
+                builder.extend_opt_phase([](PassMan& man) { man.add<LowerTypedClosWrapper>(); });
             },
             nullptr, [](Normalizers& normalizers) { clos::register_normalizers(normalizers); }};
 }
