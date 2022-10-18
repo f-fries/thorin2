@@ -1,3 +1,8 @@
+// RUN: rm -f %t.ll ; \
+// RUN: %thorin %s -d mem -d clos --output-ll %t.ll
+// RUN: clang %t.ll rt.c -o %t -Wno-override-module
+// RUN: test "$(%t | tr '\n' ':')" == "0:2:4:6:8:1:3:5:7:9:"
+
 .import mem;
 .import core;
 
@@ -10,11 +15,10 @@
 .let EQ = %core.icmp.e 4294967296;
 .let LT = %core.icmp.sl 4294967296;
 .let MOD = %core.div.srem 4294967296;
-.let TO_BOOL = %core.conv.s2s (2, 4294967296);
 
 .let C = .Cn [M, i32, .Cn M, .Cn M];
 
-.cn printInteger [mem: %mem.M, val: i32, return : .Cn [%mem.M]];
+.cn printInt [mem: %mem.M, val: i32, return : .Cn [%mem.M]];
 
 .cn .extern evil_range [mem:M, n:i32, f: C, ret: .Cn M] = {
     .cn loop_head [mem:M, i:i32] = {
@@ -22,24 +26,50 @@
             .cn f_cont [mem: M] = {
                 loop_head (mem, ADD (i, 1:i32))
             };
-            f (mem, i, f_cont, f_cont)
+            .cn k [mem: M] = {
+                printInt(mem, i, f_cont)
+            };
+            f (mem, i, k, f_cont)
         };
         .let i = LT(i, n);
-        (body, ret)#i mem
+        (ret, body)#i mem
     };
     loop_head (mem, 0:i32)
 };
 
-/* ucn .extern evil_f [mem: M, i:i32, continue:.Cn M, ret:.Cn M] = { */
-/*     .let (dmem, c) = MOD (mem, i, 2:i32); */
-/*     .let cont = (continue, ret)#(TO_BOOL c); */
-/*     printInteger (dmem, c, cont) */
-/* }; */
-
-/* .cn .extern f [mem: M, i:i32, continue:.Cn M, ret:.Cn M] = { */
-/*     .let (dmem, c) = MOD (mem, i, 2:i32); */
-/*     .cn print_cont [mem: M] = { */
-/*         (continue, ret)#(TO_BOOL c) mem */
-/*     }; */
-/*     printInteger(mem, c, print_cont) */
-/* } */;
+.cn .extern main [mem: %mem.M, argc: i32, argv : %mem.Ptr («⊤:.Nat; %mem.Ptr («⊤:.Nat; %Int 256», 0:.Nat)», 0:.Nat), return : .Cn [%mem.M, i32]] = {
+    .let (slot_m, p) = %mem.malloc (i32, 0) (mem, 10);
+    .let arr = %core.bitcast ( %mem.Ptr («⊤:.Nat; i32», 0), %mem.Ptr (i32, 0)) p;
+    .let (j_m, jp) = %mem.malloc (i32, 0) (slot_m, 1);
+    .cn f [m: M, i:i32, k:.Cn M, ret:.Cn M] = {
+        .cn if_then [m: M] = {
+            .let (j_m, j) = %mem.load (i32, 0) (m, jp);
+            .let p = %mem.lea (⊤:.Nat, <⊤:.Nat; i32>, 0) (arr, j);
+            .let store_m = %mem.store (i32, 0) (j_m, p, i);
+            .let store_m2 = %mem.store (i32, 0) (store_m, jp, ADD(j, 1:i32));
+            ret store_m2
+        };
+        .cn if_else [m: M] = {
+            k m
+        };
+        .cn cont [m: M] = {
+            .let (mm, mod) = MOD (m, i, 2:i32);
+            .let c = EQ (mod, 0:i32);
+            (if_then, if_else)#c mm
+        };
+        cont m
+    };
+    .cn exit_succ [m: M] = {
+        return (m, 0:i32)
+    };
+    .cn print_buf [m: M] = {
+        .cn printWrapper [m: M, i: i32, k: .Cn M, ret: .Cn M] = {
+            .let p = %mem.lea (⊤:.Nat, <⊤:.Nat; i32>, 0) (arr, i);
+            .let (load_m, x) = %mem.load (i32, 0) (m, p);
+            printInt(load_m, x, ret)
+        };
+        .let (j_m, j) = %mem.load (i32, 0) (m, jp);
+        evil_range (j_m, j, printWrapper, exit_succ)
+    };
+    evil_range (j_m, 10:i32, f, print_buf)
+};
