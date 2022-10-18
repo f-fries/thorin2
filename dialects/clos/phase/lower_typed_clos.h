@@ -41,8 +41,8 @@ private:
     /// Describes how the environment should be treated.
     enum Mode {
         Box = 0, //< Environment is boxed (default).
-        Unbox,   //< Environments is of primitive type (currently `iN`s) and directly stored in the pointer.
-        No_Env   //< Lambda has no environment (lifted, top-level).
+        Unbox,   //< Environments is of primitive type (currently `.Idx` and friends) and directly stored in the pointer.
+        No_Env   //< Lambda has no environment (not a closure, top-level).
     };
 
     /// Create a new lambda stub.

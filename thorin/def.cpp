@@ -75,6 +75,7 @@ const Def* App      ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) co
 const Def* Arr      ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.arr(o[0], o[1], dbg); }
 const Def* Extract  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.extract(o[0], o[1], dbg); }
 const Def* Insert   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.insert(o[0], o[1], o[2], dbg); }
+const Def* Idx      ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.type_idx(); }
 const Def* Lam      ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* Lit      ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.lit(t, get(), dbg); }
 const Def* Nat      ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.type_nat(); }
@@ -136,15 +137,13 @@ const Sigma* Sigma::restructure() {
 
 const Def* Arr::restructure() {
     auto& w = world();
-    if (auto n = isa_lit(shape()))
-        return w.sigma(DefArray(*n, [&](size_t i) { return reduce(w.lit_int(*n, i)).back(); }));
+    if (auto n = isa_lit(shape())) return w.sigma(DefArray(*n, [&](size_t i) { return reduce(w.lit_idx(*n, i)); }));
     return nullptr;
 }
 
 const Def* Pack::restructure() {
     auto& w = world();
-    if (auto n = isa_lit(shape()))
-        return w.tuple(DefArray(*n, [&](size_t i) { return reduce(w.lit_int(*n, i)).back(); }));
+    if (auto n = isa_lit(shape())) return w.tuple(DefArray(*n, [&](size_t i) { return reduce(w.lit_idx(*n, i)); }));
     return nullptr;
 }
 
@@ -200,8 +199,8 @@ const Var* Def::var(const Def* dbg) {
     if (auto lam  = isa<Lam  >()) return w.var(lam ->dom(), lam, dbg);
     if (auto pi   = isa<Pi   >()) return w.var(pi  ->dom(),  pi, dbg);
     if (auto sig  = isa<Sigma>()) return w.var(sig,         sig, dbg);
-    if (auto arr  = isa<Arr  >()) return w.var(w.type_int(arr ->shape()), arr,  dbg); // TODO shapes like (2, 3)
-    if (auto pack = isa<Pack >()) return w.var(w.type_int(pack->shape()), pack, dbg); // TODO shapes like (2, 3)
+    if (auto arr  = isa<Arr  >()) return w.var(w.type_idx(arr ->shape()), arr,  dbg); // TODO shapes like (2, 3)
+    if (auto pack = isa<Pack >()) return w.var(w.type_idx(pack->shape()), pack, dbg); // TODO shapes like (2, 3)
     if (isa_bound(this)) return w.var(this, this,  dbg);
     if (isa<Infer >())   return nullptr;
     if (isa<Global>())   return nullptr;
@@ -327,16 +326,24 @@ void Def::unset_type() {
     type_ = nullptr;
 }
 
+// TODO Maybe we can speed is_set/is_unfinished up by setting some flags.
+// These tests can easily explode quadratically.
 bool Def::is_set() const {
-    if (!isa_nom()) {
-        assert(std::ranges::all_of(ops(), [](auto op) { return op != nullptr; }) && "structurals must be always set");
-        return true;
-    }
+    auto all_set = std::ranges::all_of(ops(), [](auto op) { return op != nullptr; });
+    assert((!isa_structural() || all_set) && "structurals must be always set");
 
-    if (std::ranges::all_of(ops(), [](auto op) { return op != nullptr; })) return true;
+    if (all_set) return true;
+    if (!(std::ranges::all_of(ops(), [](auto op) { return op == nullptr; }))) {
+        world().ELOG("{} {}", this->unique_name(), this->name());
+        assert(false && "some operands are set, others aren't");
+    }
 
     assert(std::ranges::all_of(ops(), [](auto op) { return op == nullptr; }) && "some operands are set, others aren't");
     return false;
+}
+
+bool Def::is_unfinished() const {
+    return std::ranges::any_of(ops(), [](auto op) { return op == nullptr; });
 }
 
 void Def::make_external() { return world().make_external(this); }
@@ -378,19 +385,22 @@ const Def* Def::refine(size_t i, const Def* new_op) const {
 }
 
 const Def* Def::proj(nat_t a, nat_t i, const Def* dbg) const {
-    if (a == 1 && (!isa_nom<Sigma>() && !type()->isa_nom<Sigma>())) return this;
+    if (a == 1) {
+        if (!type()) return this;
+        if (!isa_nom<Sigma>() && !type()->isa_nom<Sigma>()) return this;
+    }
+
     World& w = world();
 
     if (isa<Tuple>() || isa<Sigma>()) {
         return op(i);
     } else if (auto arr = isa<Arr>()) {
         if (arr->arity()->isa<Top>()) return arr->body();
-        if (!w.type_int()) return arr->op(i); // hack for alpha equiv check of sigma (dbg of %Int..)
-        return arr->reduce(w.lit_int(as_lit(arr->arity()), i)).back();
+        return arr->reduce(w.lit_idx(as_lit(arr->arity()), i));
     } else if (auto pack = isa<Pack>()) {
         if (pack->arity()->isa<Top>()) return pack->body();
         assert(!w.is_frozen() && "TODO");
-        return pack->reduce(w.lit_int(as_lit(pack->arity()), i)).back();
+        return pack->reduce(w.lit_idx(as_lit(pack->arity()), i));
     } else if (sort() == Sort::Term) {
         if (w.is_frozen() || uses().size() < Search_In_Uses_Threshold) {
             for (auto u : uses()) {
@@ -403,6 +413,18 @@ const Def* Def::proj(nat_t a, nat_t i, const Def* dbg) const {
         }
 
         return w.extract(this, a, i, dbg);
+    }
+
+    return nullptr;
+}
+
+/*
+ * Idx
+ */
+
+const Def* Idx::size(const Def* def) {
+    if (auto app = def->isa<App>()) {
+        if (app->callee()->isa<Idx>()) return app->arg();
     }
 
     return nullptr;

@@ -109,7 +109,7 @@ private:
 
     /// @name decls
     ///@{
-    const Def* parse_decls(bool expr = true);
+    const Def* parse_decls(std::string_view ctxt);
     void parse_ax();
     void parse_let();
     void parse_nom();
@@ -168,14 +168,6 @@ private:
     /// Same above but uses @p ahead() as @p tok.
     [[noreturn]] void syntax_err(std::string_view what, std::string_view ctxt) { syntax_err(what, ahead(), ctxt); }
     ///@}
-
-    Parser(World&,
-           std::string_view,
-           std::istream&,
-           ArrayRef<std::string>,
-           const Normalizers*,
-           const Scopes&,
-           const SymSet&);
 
     Lexer lexer_;
     Scopes scopes_;

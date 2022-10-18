@@ -13,12 +13,4 @@ public:
     const Def* rewrite(const Def*) override;
 };
 
-class NormDialectTypeSize : public RWPass<NormDialectTypeSize, Lam> {
-public:
-    NormDialectTypeSize(PassMan& man)
-        : RWPass(man, "norm_ptr_size") {}
-
-    const Def* rewrite(const Def* def) override;
-};
-
 } // namespace thorin::mem

@@ -4,6 +4,7 @@
 
 #include "thorin/analyses/scope.h"
 
+#include "dialects/mem/autogen.h"
 #include "dialects/mem/mem.h"
 
 namespace thorin::clos {
@@ -91,7 +92,7 @@ ClosLit isa_clos_lit(const Def* def, bool lambda_or_branch) {
         auto fnc = std::get<1_u64>(clos_unpack(tpl));
         if (auto q = match<clos>(fnc)) {
             fnc = q->arg();
-            cc  = q.flags();
+            cc  = q.id();
         }
         if (!lambda_or_branch || fnc->isa<Lam>()) return ClosLit(tpl, cc);
     }
@@ -158,7 +159,6 @@ void ClosConv::rewrite_body(Lam* new_lam, Def2Def& subst) {
     auto params =
         w.tuple(DefArray(old_fn->num_doms(), [&](auto i) { return new_lam->var(skip_env(i), old_fn->var(i)->dbg()); }));
     subst.emplace(old_fn->var(), params);
-    assert(subst.contains(old_fn->var()));
 
     auto filter = rewrite(new_fn->filter(), subst);
     auto body   = rewrite(new_fn->body(), subst);
@@ -170,7 +170,7 @@ const Def* ClosConv::rewrite(const Def* def, Def2Def& subst) {
         case Node::Type:
         case Node::Univ:
         case Node::Nat:
-        case Node::Bot: // TODO This is used by the AD stuff????
+        case Node::Bot: // TODO We probably want to rewrite their types too!
         case Node::Top: return def;
         default: break;
     }
@@ -195,7 +195,7 @@ const Def* ClosConv::rewrite(const Def* def, Def2Def& subst) {
         // w.DLOG("RW: pack {} ~> {} : {}", lam, closure, closure_type);
         return map(closure);
     } else if (auto q = match<clos>(def)) {
-        if (q.flags() == clos::ret && !is_retvar_of(q->arg())) {
+        if (q.id() == clos::ret && !is_retvar_of(q->arg())) {
             auto ret_type = q->arg()->type()->isa<Pi>();
             assert(ret_type && ret_type->is_basicblock());
             auto new_ret = rewrite(q->arg(), subst);
@@ -208,8 +208,13 @@ const Def* ClosConv::rewrite(const Def* def, Def2Def& subst) {
         return rewrite(q->arg(), subst);
     } else if (auto lam = is_retvar_of(def)) {
         // We can't rebuild def here because we will compute a closure type for
-        // retvar instead of a continuation type
+        // retvar instead of a continuation type.
         return map(make_stub(lam, subst).fn->ret_var());
+    } else if (def->isa<Axiom>()) {
+        // FIXME: I don't know why this was added but it's probably wrong -
+        // if the axiom is applied to a continuation, we have to adjust its type as well.
+        assert(def->type() == rewrite(def->type(), subst) && "axiom requires rewrite!");
+        return def;
     }
 
     auto new_type = rewrite(def->type(), subst);
@@ -327,7 +332,7 @@ void FreeDefAna::split_fd(Node* node, const Def* fd, bool& init_node, NodeQueue&
     if (auto [var, lam] = is_var_of<Lam>(fd); var && lam) {
         if (var != lam->ret_var()) node->fvs.emplace(fd);
     } else if (auto q = match(clos::esc, fd); q && q->arg() != node->nom) {
-        node->fvs.emplace(fd);
+        node->add_fvs(fd);
     } else if (auto pred = fd->isa_nom()) {
         if (pred != node->nom) {
             auto [pnode, inserted] = build_node(pred, worklist);
@@ -338,10 +343,10 @@ void FreeDefAna::split_fd(Node* node, const Def* fd, bool& init_node, NodeQueue&
     } else if (fd->dep() == Dep::Var && !fd->isa<Tuple>()) {
         // Note: Var's can still have Def::Top, if their type is a nom!
         // So the first case is *not* redundant
-        node->fvs.emplace(fd);
+        node->add_fvs(fd);
     } else if (is_memop_res(fd)) {
         // Results of memops must not be floated down
-        node->fvs.emplace(fd);
+        node->add_fvs(fd);
     } else {
         for (auto op : fd->ops()) split_fd(node, op, init_node, worklist);
     }
@@ -376,8 +381,8 @@ void FreeDefAna::run(NodeQueue& worklist) {
         mark(node);
         for (auto p : node->preds) {
             auto& pfvs = p->fvs;
-            for (auto&& pfv : pfvs) changed |= node->fvs.insert(pfv).second;
-            world().DLOG("\tFV({}) ∪= FV({}) = {{{, }}}\b", node->nom, p->nom, pfvs);
+            for (auto&& pfv : pfvs) { changed |= node->add_fvs(pfv).second; }
+            // w.DLOG("\tFV({}) ∪= FV({}) = {{{, }}}\b", node->nom, p->nom, pfvs);
         }
         if (changed) {
             for (auto s : node->succs) { worklist.push(s); }
@@ -394,6 +399,7 @@ DefSet& FreeDefAna::run(Lam* lam) {
         cur_pass_id++;
         run(worklist);
     }
+
     return node->fvs;
 }
 

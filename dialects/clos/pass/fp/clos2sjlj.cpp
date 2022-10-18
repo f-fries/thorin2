@@ -42,7 +42,7 @@ const Def* Clos2SJLJ::rewrite(const Def* def) {
     if (auto clos = isa_clos_lit(def); clos && clos.is_basicblock() && !ignore_.contains(clos.fnc_as_lam())) {
         w.DLOG("rewrite bb closure {}", clos.fnc_as_lam());
         auto [_, tag] = clos2tag_.emplace(clos, clos2tag_.size() + 1);
-        auto env      = w.tuple({jump_buf_, arg_buf_ptr_, w.lit_int_width(tag_size, tag)});
+        auto env      = w.tuple({jump_buf_, arg_buf_ptr_, w.lit_idx(tag_size, tag)});
         return clos_pack_dbg(env, get_throw(clos.fnc_type()->dom()), get_dbg("throw", clos.fnc()), clos.type());
     }
     if (auto app = def->isa<App>(); app && app->callee_type()->is_cn() && !clos2tag_.empty()) {

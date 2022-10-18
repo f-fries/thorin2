@@ -4,6 +4,7 @@
 
 #include "dialects/clos/clos.h"
 #include "dialects/mem/mem.h"
+#include "dialects/core/core.h"
 
 namespace thorin::clos {
 
@@ -27,9 +28,9 @@ class Clos2SJLJ : public FPPass<Clos2SJLJ, Lam> {
         void enter() override;
         undo_t analyze(const Def*) override;
 
-        const Def* jump_buf_type() { return mem::type_ptr(world().type_int_width(8)); }
+        const Def* jump_buf_type() { return mem::type_ptr(world().type_int(8)); }
         const Def* arg_buf_type() { return mem::type_ptr(world().sigma()); }
-        const Def* tag_type() { return world().type_int_width(tag_size); }
+        const Def* tag_type() { return world().type_idx(tag_size); }
 
         const Def* get_dbg(const std::string& prefix, const Def* def = nullptr) {
             def = def ? def : curr_nom();

@@ -4,7 +4,6 @@
 
 #include "thorin/check.h"
 
-#include "dialects/core/core.h"
 #include "dialects/mem/mem.h"
 
 namespace thorin::clos {
@@ -116,7 +115,7 @@ const Def* LowerTypedClos::rewrite(const Def* def) {
 
     if (auto c = isa_clos_lit(def)) {
         auto env      = rewrite(c.env());
-        auto mode     = (match<core::Int>(env->type()) || match<mem::Ptr>(env->type())) ? Unbox : Box;
+        auto mode     = (env->type()->isa<Idx>() || match<mem::Ptr>(env->type())) ? Unbox : Box;
         const Def* fn = make_stub(c.fnc_as_lam(), mode, true);
         if (env->type() == w.sigma()) {
             // Optimize empty env
@@ -143,6 +142,11 @@ const Def* LowerTypedClos::rewrite(const Def* def) {
         if (!def->isa_nom<Global>() && Checker(w).equiv(nom, new_nom, nullptr)) return map(nom, nom);
         if (auto restruct = new_nom->restructure()) return map(nom, restruct);
         return new_nom;
+    } else if (def->isa<Axiom>()) {
+        // FIXME: We probably want to rebuild def with a new type here because the type of its argument may change.
+        // (Same as in ClosConv::rewrite)
+        assert(def->type() == rewrite(def->type()) && "axiom requires rewrite");
+        return def;
     } else {
         auto new_ops = Array<const Def*>(def->num_ops(), [&](auto i) { return rewrite(def->op(i)); });
 
