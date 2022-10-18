@@ -16,10 +16,10 @@ add_thorin_dialect(clos
         clos/normalizers.cpp
         clos/pass/fp/lower_typed_clos_prep.cpp
         clos/pass/fp/lower_typed_clos_prep.h
+        clos/pass/fp/clos2sjlj.cpp
+        clos/pass/fp/clos2sjlj.h
         clos/pass/rw/branch_clos_elim.cpp
         clos/pass/rw/branch_clos_elim.h
-        clos/pass/rw/clos2sjlj.cpp
-        clos/pass/rw/clos2sjlj.h
         clos/pass/rw/clos_conv_prep.cpp
         clos/pass/rw/clos_conv_prep.h
         clos/phase/clos_conv.cpp

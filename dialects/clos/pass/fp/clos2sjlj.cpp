@@ -1,4 +1,4 @@
-#include "dialects/clos/pass/rw/clos2sjlj.h"
+#include "dialects/clos/pass/fp/clos2sjlj.h"
 
 #include "dialects/core/core.h"
 

@@ -9,9 +9,9 @@
 #include "thorin/pass/fp/eta_red.h"
 #include "thorin/pass/rw/scalarize.h"
 
+#include "dialects/clos/pass/fp/clos2sjlj.h"
 #include "dialects/clos/pass/fp/lower_typed_clos_prep.h"
 #include "dialects/clos/pass/rw/branch_clos_elim.h"
-#include "dialects/clos/pass/rw/clos2sjlj.h"
 #include "dialects/clos/pass/rw/clos_conv_prep.h"
 #include "dialects/clos/phase/clos_conv.h"
 #include "dialects/clos/phase/lower_typed_clos.h"
